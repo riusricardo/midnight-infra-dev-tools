@@ -41,22 +41,22 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
     fi
 fi
 
-# Binary configuration
-BINARY_NAME="${BINARY_NAME:-midnight-node}"
-BINARY_PATH="${BINARY_PATH:-}"  # Direct path to binary (optional)
-CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/node-operator.conf}"
+# Binary configuration (MO = Midnight Operator)
+MO_BINARY_NAME="${MO_BINARY_NAME:-midnight-node}"
+MO_BINARY_PATH="${MO_BINARY_PATH:-}"  # Direct path to binary (optional)
+MO_CONFIG_FILE="${MO_CONFIG_FILE:-$SCRIPT_DIR/node-operator.conf}"
 
 # Default configuration - can be overridden by config file or environment
-BINARY="${BINARY:-./target/release/midnight-node}"
-BASE_DIR="${BASE_DIR:-/tmp/midnight-nodes}"
-LOG_DIR="${LOG_DIR:-/tmp/midnight-logs}"
-SEED_DIR="${SEED_DIR:-/tmp/midnight-seeds}"
-CHAIN_SPEC_DIR="${CHAIN_SPEC_DIR:-/tmp/midnight-chainspecs}"
-PID_DIR="${PID_DIR:-/tmp/midnight-pids}"
+MO_BINARY="${MO_BINARY:-./target/release/midnight-node}"
+MO_BASE_DIR="${MO_BASE_DIR:-/tmp/midnight-nodes}"
+MO_LOG_DIR="${MO_LOG_DIR:-/tmp/midnight-logs}"
+MO_SEED_DIR="${MO_SEED_DIR:-/tmp/midnight-seeds}"
+MO_CHAIN_SPEC_DIR="${MO_CHAIN_SPEC_DIR:-/tmp/midnight-chainspecs}"
+MO_PID_DIR="${MO_PID_DIR:-/tmp/midnight-pids}"
 
 # Build configuration
-CARGO_PROFILE="${CARGO_PROFILE:-release}"
-FEATURES="${FEATURES:-}"
+MO_CARGO_PROFILE="${MO_CARGO_PROFILE:-release}"
+MO_FEATURES="${MO_FEATURES:-}"
 
 # Colors
 RED='\033[0;31m'
@@ -82,7 +82,7 @@ log_success() { echo -e "${GREEN}[✓]${NC} $*"; }
 log_warning() { echo -e "${YELLOW}[!]${NC} $*"; }
 log_error() { echo -e "${RED}[✗]${NC} $*"; }
 log_debug() {
-    if [[ "${VERBOSE:-false}" == "true" ]]; then
+    if [[ "${MO_VERBOSE:-false}" == "true" ]]; then
         echo -e "${CYAN}[DEBUG]${NC} $*"
     fi
 }
@@ -99,12 +99,12 @@ print_header() {
 
 # Load configuration from file if it exists
 load_config() {
-    if [[ -f "$CONFIG_FILE" ]]; then
-        log_info "Loading configuration from: $CONFIG_FILE"
+    if [[ -f "$MO_CONFIG_FILE" ]]; then
+        log_info "Loading configuration from: $MO_CONFIG_FILE"
         # shellcheck source=/dev/null
-        source "$CONFIG_FILE"
+        source "$MO_CONFIG_FILE"
     else
-        log_debug "No configuration file found at: $CONFIG_FILE"
+        log_debug "No configuration file found at: $MO_CONFIG_FILE"
     fi
 }
 
@@ -116,28 +116,28 @@ load_config() {
 get_binary_path() {
     local binary_path=""
     
-    # First priority: explicitly provided BINARY_PATH
-    if [[ -n "$BINARY_PATH" ]]; then
-        binary_path="$BINARY_PATH"
+    # First priority: explicitly provided MO_BINARY_PATH
+    if [[ -n "$MO_BINARY_PATH" ]]; then
+        binary_path="$MO_BINARY_PATH"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at specified path: $binary_path"
             return 1
         fi
     # Second priority: derive from PROJECT_ROOT
     elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$CARGO_PROFILE/$BINARY_NAME"
+        binary_path="$PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at: $binary_path"
             log_info "Please build the project first using: cargo build --release"
-            log_info "Or specify binary path: BINARY_PATH=/path/to/binary $0 start ..."
+            log_info "Or specify binary path: MO_BINARY_PATH=/path/to/binary $0 start ..."
             return 1
         fi
-    # Third priority: use BINARY variable
-    elif [[ -f "$BINARY" ]]; then
-        binary_path="$BINARY"
+    # Third priority: use MO_BINARY variable
+    elif [[ -f "$MO_BINARY" ]]; then
+        binary_path="$MO_BINARY"
     else
-        log_error "Cannot locate binary: neither BINARY_PATH nor PROJECT_ROOT is set, and BINARY ($BINARY) not found"
-        log_info "Set BINARY_PATH: BINARY_PATH=/path/to/binary $0 start ..."
+        log_error "Cannot locate binary: neither MO_BINARY_PATH nor PROJECT_ROOT is set, and MO_BINARY ($MO_BINARY) not found"
+        log_info "Set MO_BINARY_PATH: MO_BINARY_PATH=/path/to/binary $0 start ..."
         log_info "Or set PROJECT_ROOT: PROJECT_ROOT=/path/to/project $0 start ..."
         return 1
     fi
@@ -207,7 +207,7 @@ save_pid() {
     local pid="$2"
     local pid_file="${PID_DIR}/${node_name}.pid"
     
-    mkdir -p "$PID_DIR"
+    mkdir -p "$MO_PID_DIR"
     echo "$pid" > "$pid_file"
     log_debug "Saved PID $pid to $pid_file"
 }
@@ -331,7 +331,7 @@ generate_chain_spec() {
     local output_file="${CHAIN_SPEC_DIR}/local-multi-node-raw.json"
     
     check_binary
-    mkdir -p "$CHAIN_SPEC_DIR"
+    mkdir -p "$MO_CHAIN_SPEC_DIR"
     
     if [[ -f "$output_file" ]]; then
         log_info "Using existing chain spec: $output_file" >&2
@@ -563,7 +563,7 @@ join_network() {
         base_path="${BASE_DIR}/${name}"
     fi
     
-    mkdir -p "$base_path" "$LOG_DIR" "$PID_DIR"
+    mkdir -p "$base_path" "$MO_LOG_DIR" "$MO_PID_DIR"
     
     log_info "Joining network as $name..."
     log_info "  Chain spec: $chain_spec"
@@ -757,8 +757,8 @@ start_node() {
         return 1
     fi
     
-    mkdir -p "$SEED_DIR" "$LOG_DIR" "$PID_DIR"
-    chmod 700 "$SEED_DIR"
+    mkdir -p "$MO_SEED_DIR" "$MO_LOG_DIR" "$MO_PID_DIR"
+    chmod 700 "$MO_SEED_DIR"
     
     # Create seed file
     local seed_file="${SEED_DIR}/${node_name}-seed"
@@ -834,7 +834,7 @@ start_network() {
     fi
     
     check_binary
-    mkdir -p "$SEED_DIR" "$LOG_DIR"
+    mkdir -p "$MO_SEED_DIR" "$MO_LOG_DIR"
     
     local chain_spec=""
     
@@ -891,7 +891,7 @@ start_network() {
     IFS=':' read -r bootnode_name bootnode_p2p bootnode_rpc bootnode_key <<< "$bootnode_config"
     
     local bootnode_base_path="${BASE_DIR}/${bootnode_name}"
-    mkdir -p "$bootnode_base_path" "$LOG_DIR" "$PID_DIR"
+    mkdir -p "$bootnode_base_path" "$MO_LOG_DIR" "$MO_PID_DIR"
     
     log_info "Starting bootnode ($bootnode_name)..."
     
@@ -978,7 +978,7 @@ start_network() {
                 continue
             fi
             
-            mkdir -p "$base_path" "$LOG_DIR" "$PID_DIR"
+            mkdir -p "$base_path" "$MO_LOG_DIR" "$MO_PID_DIR"
             
             log_info "Starting $node_name (validator)..."
             
@@ -1127,8 +1127,8 @@ stop_nodes() {
         
         local stopped_count=0
         # Stop nodes with PID files first
-        if [[ -d "$PID_DIR" ]]; then
-            for pid_file in "$PID_DIR"/*.pid; do
+        if [[ -d "$MO_PID_DIR" ]]; then
+            for pid_file in "$MO_PID_DIR"/*.pid; do
                 [[ -f "$pid_file" ]] || continue
                 local name=$(basename "$pid_file" .pid)
                 if stop_single_node "$name"; then
@@ -1306,17 +1306,17 @@ clean_data() {
     fi
     
     if [[ "$node_name" == "all" ]]; then
-        if [[ -d "$BASE_DIR" ]]; then
-            rm -rf "$BASE_DIR"
-            log_info "Removed: $BASE_DIR"
+        if [[ -d "$MO_BASE_DIR" ]]; then
+            rm -rf "$MO_BASE_DIR"
+            log_info "Removed: $MO_BASE_DIR"
         fi
-        if [[ -d "$SEED_DIR" ]]; then
-            rm -rf "$SEED_DIR"
-            log_info "Removed: $SEED_DIR"
+        if [[ -d "$MO_SEED_DIR" ]]; then
+            rm -rf "$MO_SEED_DIR"
+            log_info "Removed: $MO_SEED_DIR"
         fi
-        if [[ -d "$LOG_DIR" ]]; then
-            rm -rf "$LOG_DIR"
-            log_info "Removed: $LOG_DIR"
+        if [[ -d "$MO_LOG_DIR" ]]; then
+            rm -rf "$MO_LOG_DIR"
+            log_info "Removed: $MO_LOG_DIR"
         fi
     else
         local config

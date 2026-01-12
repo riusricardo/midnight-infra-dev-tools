@@ -41,37 +41,37 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
     fi
 fi
 
-BINARY_NAME="${BINARY_NAME:-indexer-standalone}"
-BINARY_PATH="${BINARY_PATH:-}"  # Direct path to binary (optional)
-PID_FILE="${PID_FILE:-/tmp/${BINARY_NAME}.pid}"
-LOG_FILE="${LOG_FILE:-/tmp/${BINARY_NAME}.log}"
-CONFIG_FILE_PATH="${CONFIG_FILE:-$SCRIPT_DIR/indexer-standalone/config.yaml}"
+MI_BINARY_NAME="${MI_BINARY_NAME:-indexer-standalone}"
+MI_BINARY_PATH="${MI_BINARY_PATH:-}"  # Direct path to binary (optional)
+MI_PID_FILE="${MI_PID_FILE:-/tmp/${MI_BINARY_NAME}.pid}"
+MI_LOG_FILE="${MI_LOG_FILE:-/tmp/${MI_BINARY_NAME}.log}"
+MI_CONFIG_FILE="${MI_CONFIG_FILE:-$SCRIPT_DIR/indexer-standalone/config.yaml}"
 
 # Node configuration
-NODE_URL="${APP__INFRA__NODE__URL:-ws://127.0.0.1:9944}"
-NODE_VERSION_FILE="${NODE_VERSION_FILE:-$SCRIPT_DIR/NODE_VERSION}"
+MI_NODE_URL="${MI_NODE_URL:-ws://127.0.0.1:9944}"
+MI_NODE_VERSION_FILE="${MI_NODE_VERSION_FILE:-$SCRIPT_DIR/NODE_VERSION}"
 
 # Database configuration
-DATA_DIR="${DATA_DIR:-$SCRIPT_DIR/target/data}"
-DB_FILE="${APP__INFRA__STORAGE__CNN_URL:-$DATA_DIR/indexer.sqlite}"
+MI_DATA_DIR="${MI_DATA_DIR:-$SCRIPT_DIR/target/data}"
+MI_DB_FILE="${MI_DB_FILE:-$MI_DATA_DIR/indexer.sqlite}"
 
 # API configuration
-API_PORT="${API_PORT:-8088}"
+MI_API_PORT="${MI_API_PORT:-8088}"
 
 # Default secret (32-byte hex, 64 hex chars) - CHANGE THIS IN PRODUCTION!
 DEFAULT_SECRET="303132333435363738393031323334353637383930313233343536373839303132"
-APP_SECRET="${APP__INFRA__SECRET:-$DEFAULT_SECRET}"
+MI_APP_SECRET="${MI_APP_SECRET:-$DEFAULT_SECRET}"
 
 # Build configuration
-CARGO_PROFILE="${CARGO_PROFILE:-release}"
-FEATURES="${FEATURES:-standalone}"
-RUST_LOG="${RUST_LOG:-info}"
-RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
+MI_CARGO_PROFILE="${MI_CARGO_PROFILE:-release}"
+MI_FEATURES="${MI_FEATURES:-standalone}"
+MI_RUST_LOG="${MI_RUST_LOG:-info}"
+MI_RUST_BACKTRACE="${MI_RUST_BACKTRACE:-1}"
 
 # Monitoring configuration
-HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-30}"
-MAX_RESTART_ATTEMPTS="${MAX_RESTART_ATTEMPTS:-3}"
-RESTART_DELAY="${RESTART_DELAY:-5}"
+MI_HEALTH_CHECK_INTERVAL="${MI_HEALTH_CHECK_INTERVAL:-30}"
+MI_MAX_RESTART_ATTEMPTS="${MI_MAX_RESTART_ATTEMPTS:-3}"
+MI_RESTART_DELAY="${MI_RESTART_DELAY:-5}"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -98,7 +98,7 @@ log_error() {
 }
 
 log_debug() {
-    if [[ "${VERBOSE:-false}" == "true" ]]; then
+    if [[ "${MI_VERBOSE:-false}" == "true" ]]; then
         echo -e "${CYAN}[DEBUG]${NC} $*"
     fi
 }
@@ -114,15 +114,15 @@ get_binary_path() {
     local binary_path=""
     
     # First priority: explicitly provided BINARY_PATH
-    if [[ -n "$BINARY_PATH" ]]; then
-        binary_path="$BINARY_PATH"
+    if [[ -n "$MI_BINARY_PATH" ]]; then
+        binary_path="$MI_BINARY_PATH"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at specified path: $binary_path"
             return 1
         fi
     # Second priority: derive from PROJECT_ROOT
     elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$CARGO_PROFILE/$BINARY_NAME"
+        binary_path="$PROJECT_ROOT/target/$MI_CARGO_PROFILE/$MI_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at: $binary_path"
             log_info "Please build the project first using: ./manage-indexer.sh build"
@@ -141,14 +141,14 @@ get_binary_path() {
 
 # Check if the process is running
 is_running() {
-    if [[ -f "$PID_FILE" ]]; then
+    if [[ -f "$MI_PID_FILE" ]]; then
         local pid
-        pid=$(cat "$PID_FILE")
+        pid=$(cat "$MI_PID_FILE")
         if ps -p "$pid" > /dev/null 2>&1; then
             return 0
         else
             log_warn "PID file exists but process is not running"
-            rm -f "$PID_FILE"
+            rm -f "$MI_PID_FILE"
             return 1
         fi
     fi
@@ -157,8 +157,8 @@ is_running() {
 
 # Get process PID
 get_pid() {
-    if [[ -f "$PID_FILE" ]]; then
-        cat "$PID_FILE"
+    if [[ -f "$MI_PID_FILE" ]]; then
+        cat "$MI_PID_FILE"
     fi
 }
 
@@ -181,7 +181,7 @@ check_node() {
     response=$(curl -s -H "Content-Type: application/json" \
         -d '{"jsonrpc":"2.0","method":"system_health","params":[],"id":1}' \
         "$node_rpc_url" 2>/dev/null) || {
-        log_error "Cannot connect to node at: $NODE_URL"
+        log_error "Cannot connect to node at: $MI_NODE_URL"
         log_info "Ensure your Midnight node is running and accessible"
         return 1
     }
@@ -218,9 +218,9 @@ check_node_version() {
     
     log_info "Running node version: $node_version"
     
-    if [[ -f "$NODE_VERSION_FILE" ]]; then
+    if [[ -f "$MI_NODE_VERSION_FILE" ]]; then
         local expected_version
-        expected_version=$(cat "$NODE_VERSION_FILE")
+        expected_version=$(cat "$MI_NODE_VERSION_FILE")
         log_info "Expected node version: $expected_version"
         
         if [[ "$node_version" != "$expected_version" ]]; then
@@ -236,7 +236,7 @@ check_node_version() {
             log_info "Node version matches: ${GREEN}OK${NC}"
         fi
     else
-        log_warn "NODE_VERSION file not found at: $NODE_VERSION_FILE"
+        log_warn "NODE_VERSION file not found at: $MI_NODE_VERSION_FILE"
         log_info "Current node version: $node_version"
     fi
 }
@@ -266,8 +266,8 @@ generate_metadata() {
     mkdir -p "$metadata_dir"
     
     # Download metadata
-    log_info "Downloading metadata from: $NODE_URL"
-    subxt metadata --url "$NODE_URL" -o "$metadata_dir/metadata.scale" || {
+    log_info "Downloading metadata from: $MI_NODE_URL"
+    subxt metadata --url "$MI_NODE_URL" -o "$metadata_dir/metadata.scale" || {
         log_error "Failed to download metadata"
         return 1
     }
@@ -275,8 +275,8 @@ generate_metadata() {
     log_info "Metadata saved to: $metadata_dir/metadata.scale"
     
     # Update NODE_VERSION file
-    echo "$node_version" > "$NODE_VERSION_FILE"
-    log_info "Updated NODE_VERSION file: $NODE_VERSION_FILE"
+    echo "$node_version" > "$MI_NODE_VERSION_FILE"
+    log_info "Updated NODE_VERSION file: $MI_NODE_VERSION_FILE"
     
     log_info "Metadata generated successfully!"
     
@@ -306,7 +306,7 @@ build_binary() {
         return 1
     fi
     
-    log_info "Build profile: $CARGO_PROFILE"
+    log_info "Build profile: $MI_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-standalone}"
     
     cd "$PROJECT_ROOT"
@@ -316,12 +316,12 @@ build_binary() {
         "--package" "indexer-standalone"
     )
     
-    if [[ "$CARGO_PROFILE" == "release" ]]; then
+    if [[ "$MI_CARGO_PROFILE" == "release" ]]; then
         cargo_args+=("--release")
     fi
     
-    if [[ -n "$FEATURES" ]]; then
-        cargo_args+=("--features" "$FEATURES")
+    if [[ -n "$MI_FEATURES" ]]; then
+        cargo_args+=("--features" "$MI_FEATURES")
     fi
     
     log_info "Running: cargo ${cargo_args[*]}"
@@ -346,49 +346,49 @@ reset_database() {
         return 1
     fi
     
-    if [[ -d "$DATA_DIR" ]]; then
+    if [[ -d "$MI_DATA_DIR" ]]; then
         log_warn "This will DELETE all indexed data!"
-        log_warn "Data directory: $DATA_DIR"
+        log_warn "Data directory: $MI_DATA_DIR"
         read -rp "Are you sure? (yes/NO): " confirm
         if [[ "$confirm" != "yes" ]]; then
             log_info "Cancelled"
             return 0
         fi
         
-        rm -rf "$DATA_DIR"
-        log_info "Data directory removed: $DATA_DIR"
+        rm -rf "$MI_DATA_DIR"
+        log_info "Data directory removed: $MI_DATA_DIR"
         log_info "The indexer will re-index from genesis on next start"
     else
-        log_info "Data directory does not exist: $DATA_DIR"
+        log_info "Data directory does not exist: $MI_DATA_DIR"
     fi
 }
 
 show_database_info() {
     print_header "Database Information"
     
-    if [[ ! -f "$DB_FILE" ]]; then
-        log_warn "Database file does not exist: $DB_FILE"
+    if [[ ! -f "$MI_DB_FILE" ]]; then
+        log_warn "Database file does not exist: $MI_DB_FILE"
         return 0
     fi
     
-    log_info "Database file: $DB_FILE"
+    log_info "Database file: $MI_DB_FILE"
     
     if command -v sqlite3 > /dev/null 2>&1; then
         local size
-        size=$(du -h "$DB_FILE" | cut -f1)
+        size=$(du -h "$MI_DB_FILE" | cut -f1)
         log_info "Database size: $size"
         
         echo ""
         echo "Tables:"
-        sqlite3 "$DB_FILE" ".tables"
+        sqlite3 "$MI_DB_FILE" ".tables"
         
         echo ""
         echo "Row counts:"
-        sqlite3 "$DB_FILE" "SELECT 'blocks', COUNT(*) FROM blocks UNION ALL SELECT 'transactions', COUNT(*) FROM transactions;" 2>/dev/null || log_warn "Cannot query database"
+        sqlite3 "$MI_DB_FILE" "SELECT 'blocks', COUNT(*) FROM blocks UNION ALL SELECT 'transactions', COUNT(*) FROM transactions;" 2>/dev/null || log_warn "Cannot query database"
     else
         log_warn "sqlite3 command not available for detailed inspection"
         local size
-        size=$(du -h "$DB_FILE" | cut -f1)
+        size=$(du -h "$MI_DB_FILE" | cut -f1)
         log_info "Database size: $size"
     fi
 }
@@ -415,44 +415,44 @@ start_server() {
     binary_path=$(get_binary_path) || return 1
     
     # Create data directory
-    mkdir -p "$DATA_DIR"
+    mkdir -p "$MI_DATA_DIR"
     
     log_info "Starting indexer with configuration:"
-    log_info "  Node URL: $NODE_URL"
-    log_info "  Database: $DB_FILE"
-    log_info "  API Port: $API_PORT"
-    log_info "  Log Level: $RUST_LOG"
-    log_info "  Log File: $LOG_FILE"
+    log_info "  Node URL: $MI_NODE_URL"
+    log_info "  Database: $MI_DB_FILE"
+    log_info "  API Port: $MI_API_PORT"
+    log_info "  Log Level: $MI_RUST_LOG"
+    log_info "  Log File: $MI_LOG_FILE"
     
     # Set up environment variables
-    export RUST_LOG="$RUST_LOG"
-    export RUST_BACKTRACE="$RUST_BACKTRACE"
-    export APP__INFRA__NODE__URL="$NODE_URL"
-    export APP__INFRA__STORAGE__CNN_URL="$DB_FILE"
-    export APP__INFRA__SECRET="$APP_SECRET"
-    export CONFIG_FILE="$CONFIG_FILE_PATH"
+    export RUST_LOG="$MI_RUST_LOG"
+    export RUST_BACKTRACE="$MI_RUST_BACKTRACE"
+    export APP__INFRA__NODE__URL="$MI_NODE_URL"
+    export APP__INFRA__STORAGE__CNN_URL="$MI_DB_FILE"
+    export APP__INFRA__SECRET="$MI_APP_SECRET"
+    export CONFIG_FILE="$MI_CONFIG_FILE"
     
     # Start the indexer in background
     log_info "Launching: $binary_path"
-    nohup "$binary_path" > "$LOG_FILE" 2>&1 &
+    nohup "$binary_path" > "$MI_LOG_FILE" 2>&1 &
     local pid=$!
-    echo "$pid" > "$PID_FILE"
+    echo "$pid" > "$MI_PID_FILE"
     
     # Wait a moment and check if it's still running
     sleep 3
     if ps -p "$pid" > /dev/null 2>&1; then
         log_info "Indexer started successfully (PID: $pid)"
-        log_info "GraphQL API will be available at: http://localhost:$API_PORT"
-        log_info "Logs: tail -f $LOG_FILE"
+        log_info "GraphQL API will be available at: http://localhost:$MI_API_PORT"
+        log_info "Logs: tail -f $MI_LOG_FILE"
         
         # Show initial log output
         echo ""
         log_info "Initial output:"
-        tail -n 10 "$LOG_FILE"
+        tail -n 10 "$MI_LOG_FILE"
     else
         log_error "Indexer failed to start"
-        log_error "Check logs: tail $LOG_FILE"
-        rm -f "$PID_FILE"
+        log_error "Check logs: tail $MI_LOG_FILE"
+        rm -f "$MI_PID_FILE"
         return 1
     fi
 }
@@ -487,7 +487,7 @@ stop_server() {
         sleep 1
     fi
     
-    rm -f "$PID_FILE"
+    rm -f "$MI_PID_FILE"
     log_info "Indexer stopped successfully"
 }
 
@@ -515,8 +515,8 @@ status_server() {
         # Show recent logs
         echo ""
         log_info "Recent logs:"
-        if [[ -f "$LOG_FILE" ]]; then
-            tail -n 5 "$LOG_FILE"
+        if [[ -f "$MI_LOG_FILE" ]]; then
+            tail -n 5 "$MI_LOG_FILE"
         fi
         
         # Check API
@@ -540,7 +540,7 @@ check_api() {
         return 0
     fi
     
-    local api_url="http://localhost:$API_PORT/api/v3/graphql"
+    local api_url="http://localhost:$MI_API_PORT/api/v3/graphql"
     
     # Try a simple query
     local response
@@ -576,7 +576,7 @@ test_api() {
         return 1
     fi
     
-    local api_url="http://localhost:$API_PORT/api/v3/graphql"
+    local api_url="http://localhost:$MI_API_PORT/api/v3/graphql"
     
     echo "Testing: Get latest block"
     curl -s -X POST "$api_url" \
@@ -641,12 +641,12 @@ monitor_server() {
 watch_logs() {
     print_header "Watching Midnight Indexer Logs"
     
-    if [[ ! -f "$LOG_FILE" ]]; then
-        log_error "Log file not found: $LOG_FILE"
+    if [[ ! -f "$MI_LOG_FILE" ]]; then
+        log_error "Log file not found: $MI_LOG_FILE"
         return 1
     fi
     
-    tail -f "$LOG_FILE"
+    tail -f "$MI_LOG_FILE"
 }
 
 show_metrics() {
@@ -791,7 +791,7 @@ TROUBLESHOOTING:
   - Node version mismatch: Run 'generate-metadata' then 'build'
   - Connection refused: Ensure node is running on ws://127.0.0.1:9944
   - Unexpected block errors: Run 'reset-db' to clear database
-  - Check logs with: tail -f $LOG_FILE
+  - Check logs with: tail -f $MI_LOG_FILE
 
 EOF
 }
@@ -818,7 +818,7 @@ main() {
                 ;;
             --data-dir)
                 DATA_DIR="$2"
-                DB_FILE="$DATA_DIR/indexer.sqlite"
+                DB_FILE="$MI_DATA_DIR/indexer.sqlite"
                 shift 2
                 ;;
             --db-file)

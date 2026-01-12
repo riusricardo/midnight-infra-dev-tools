@@ -42,32 +42,32 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
     fi
 fi
 
-BINARY_NAME="${BINARY_NAME:-midnight-proof-server}"
-BINARY_PATH="${BINARY_PATH:-}"  # Direct path to binary (optional)
-PID_FILE="${PID_FILE:-/tmp/${BINARY_NAME}.pid}"
-LOG_FILE="${LOG_FILE:-/tmp/${BINARY_NAME}.log}"
-CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/proof-server.conf}"
+MPS_BINARY_NAME="${MPS_BINARY_NAME:-midnight-proof-server}"
+MPS_BINARY_PATH="${MPS_BINARY_PATH:-}"  # Direct path to binary (optional)
+MPS_PID_FILE="${MPS_PID_FILE:-/tmp/${MPS_BINARY_NAME}.pid}"
+MPS_LOG_FILE="${MPS_LOG_FILE:-/tmp/${MPS_BINARY_NAME}.log}"
+MPS_CONFIG_FILE="${MPS_CONFIG_FILE:-$SCRIPT_DIR/proof-server.conf}"
 
 # Default configuration values (can be overridden by config file or environment)
-PORT="${MIDNIGHT_PROOF_SERVER_PORT:-6300}"
-VERBOSE="${MIDNIGHT_PROOF_SERVER_VERBOSE:-false}"
-JOB_CAPACITY="${MIDNIGHT_PROOF_SERVER_JOB_CAPACITY:-0}"
-NUM_WORKERS="${MIDNIGHT_PROOF_SERVER_NUM_WORKERS:-16}"
-JOB_TIMEOUT="${MIDNIGHT_PROOF_SERVER_JOB_TIMEOUT:-600.0}"
-NO_FETCH_PARAMS="${MIDNIGHT_PROOF_SERVER_NO_FETCH_PARAMS:-false}"
+MPS_PORT="${MPS_PORT:-6300}"
+MPS_VERBOSE="${MPS_VERBOSE:-false}"
+MPS_JOB_CAPACITY="${MPS_JOB_CAPACITY:-0}"
+MPS_NUM_WORKERS="${MPS_NUM_WORKERS:-16}"
+MPS_JOB_TIMEOUT="${MPS_JOB_TIMEOUT:-600.0}"
+MPS_NO_FETCH_PARAMS="${MPS_NO_FETCH_PARAMS:-false}"
 
 # Build configuration
-CARGO_PROFILE="${CARGO_PROFILE:-release}"
-FEATURES="${FEATURES:-}"
-RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
+MPS_CARGO_PROFILE="${MPS_CARGO_PROFILE:-release}"
+MPS_FEATURES="${MPS_FEATURES:-}"
+MPS_RUST_BACKTRACE="${MPS_RUST_BACKTRACE:-1}"
 
 # ICICLE library path (for GPU builds)
-ICICLE_LIB_PATH="${ICICLE_LIB_PATH:-/opt/icicle/lib}"
+MPS_ICICLE_LIB_PATH="${MPS_ICICLE_LIB_PATH:-/opt/icicle/lib}"
 
 # Monitoring configuration
-HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-30}"
-MAX_RESTART_ATTEMPTS="${MAX_RESTART_ATTEMPTS:-3}"
-RESTART_DELAY="${RESTART_DELAY:-5}"
+MPS_HEALTH_CHECK_INTERVAL="${MPS_HEALTH_CHECK_INTERVAL:-30}"
+MPS_MAX_RESTART_ATTEMPTS="${MPS_MAX_RESTART_ATTEMPTS:-3}"
+MPS_RESTART_DELAY="${MPS_RESTART_DELAY:-5}"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -107,12 +107,12 @@ print_header() {
 
 # Load configuration from file if it exists
 load_config() {
-    if [[ -f "$CONFIG_FILE" ]]; then
-        log_info "Loading configuration from: $CONFIG_FILE"
+    if [[ -f "$MPS_CONFIG_FILE" ]]; then
+        log_info "Loading configuration from: $MPS_CONFIG_FILE"
         # shellcheck source=/dev/null
-        source "$CONFIG_FILE"
+        source "$MPS_CONFIG_FILE"
     else
-        log_debug "No configuration file found at: $CONFIG_FILE"
+        log_debug "No configuration file found at: $MPS_CONFIG_FILE"
     fi
 }
 
@@ -121,15 +121,15 @@ get_binary_path() {
     local binary_path=""
     
     # First priority: explicitly provided BINARY_PATH
-    if [[ -n "$BINARY_PATH" ]]; then
-        binary_path="$BINARY_PATH"
+    if [[ -n "$MPS_BINARY_PATH" ]]; then
+        binary_path="$MPS_BINARY_PATH"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at specified path: $binary_path"
             return 1
         fi
     # Second priority: derive from PROJECT_ROOT
     elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$CARGO_PROFILE/$BINARY_NAME"
+        binary_path="$PROJECT_ROOT/target/$MPS_CARGO_PROFILE/$MPS_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at: $binary_path"
             log_info "Please build the project first using: ./manage-proof-server.sh build"
@@ -148,14 +148,14 @@ get_binary_path() {
 
 # Check if the process is running
 is_running() {
-    if [[ -f "$PID_FILE" ]]; then
+    if [[ -f "$MPS_PID_FILE" ]]; then
         local pid
-        pid=$(cat "$PID_FILE")
+        pid=$(cat "$MPS_PID_FILE")
         if ps -p "$pid" > /dev/null 2>&1; then
             return 0
         else
             log_warn "PID file exists but process is not running"
-            rm -f "$PID_FILE"
+            rm -f "$MPS_PID_FILE"
             return 1
         fi
     fi
@@ -164,8 +164,8 @@ is_running() {
 
 # Get process PID
 get_pid() {
-    if [[ -f "$PID_FILE" ]]; then
-        cat "$PID_FILE"
+    if [[ -f "$MPS_PID_FILE" ]]; then
+        cat "$MPS_PID_FILE"
     fi
 }
 
@@ -189,7 +189,7 @@ build_binary() {
         return 1
     fi
     
-    log_info "Build profile: $CARGO_PROFILE"
+    log_info "Build profile: $MPS_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-none}"
     
     cd "$PROJECT_ROOT"
@@ -199,16 +199,16 @@ build_binary() {
         "--package" "midnight-proof-server"
     )
     
-    if [[ "$CARGO_PROFILE" == "release" ]]; then
+    if [[ "$MPS_CARGO_PROFILE" == "release" ]]; then
         cargo_args+=("--release")
     fi
     
-    if [[ -n "$FEATURES" ]]; then
-        cargo_args+=("--features" "$FEATURES")
+    if [[ -n "$MPS_FEATURES" ]]; then
+        cargo_args+=("--features" "$MPS_FEATURES")
         
         # If building with GPU features, ensure ICICLE libraries will be built from source
         # or use preinstalled ones via ICICLE_FRONTEND_INSTALL_DIR
-        if [[ "$FEATURES" =~ "gpu" ]]; then
+        if [[ "$MPS_FEATURES" =~ "gpu" ]]; then
             log_warn "Building with GPU features"
             log_warn "ICICLE libraries will be built from source unless ICICLE_FRONTEND_INSTALL_DIR is set"
             log_warn "This may take significant time on first build"
@@ -244,36 +244,36 @@ start_server() {
     
     # Prepare command line arguments
     local args=()
-    args+=("--port" "$PORT")
+    args+=("--port" "$MPS_PORT")
     
-    if [[ "$VERBOSE" == "true" ]]; then
+    if [[ "$MPS_VERBOSE" == "true" ]]; then
         args+=("--verbose")
     fi
     
-    if [[ "$JOB_CAPACITY" -ne 0 ]]; then
-        args+=("--job-capacity" "$JOB_CAPACITY")
+    if [[ "$MPS_JOB_CAPACITY" -ne 0 ]]; then
+        args+=("--job-capacity" "$MPS_JOB_CAPACITY")
     fi
     
-    if [[ "$NUM_WORKERS" -ne 2 ]]; then
-        args+=("--num-workers" "$NUM_WORKERS")
+    if [[ "$MPS_NUM_WORKERS" -ne 2 ]]; then
+        args+=("--num-workers" "$MPS_NUM_WORKERS")
     fi
     
-    if [[ "$JOB_TIMEOUT" != "600.0" ]]; then
-        args+=("--job-timeout" "$JOB_TIMEOUT")
+    if [[ "$MPS_JOB_TIMEOUT" != "600.0" ]]; then
+        args+=("--job-timeout" "$MPS_JOB_TIMEOUT")
     fi
     
-    if [[ "$NO_FETCH_PARAMS" == "true" ]]; then
+    if [[ "$MPS_NO_FETCH_PARAMS" == "true" ]]; then
         args+=("--no-fetch-params")
     fi
     
     log_info "Starting server with configuration:"
-    log_info "  Port: $PORT"
-    log_info "  Verbose: $VERBOSE"
-    log_info "  Job Capacity: $JOB_CAPACITY"
-    log_info "  Num Workers: $NUM_WORKERS"
-    log_info "  Job Timeout: $JOB_TIMEOUT"
-    log_info "  No Fetch Params: $NO_FETCH_PARAMS"
-    log_info "  Log File: $LOG_FILE"
+    log_info "  Port: $MPS_PORT"
+    log_info "  Verbose: $MPS_VERBOSE"
+    log_info "  Job Capacity: $MPS_JOB_CAPACITY"
+    log_info "  Num Workers: $MPS_NUM_WORKERS"
+    log_info "  Job Timeout: $MPS_JOB_TIMEOUT"
+    log_info "  No Fetch Params: $MPS_NO_FETCH_PARAMS"
+    log_info "  Log File: $MPS_LOG_FILE"
     
     # Auto-detect if binary needs GPU libraries (ICICLE/CUDA)
     local lib_path="${LD_LIBRARY_PATH:-}"
@@ -295,7 +295,7 @@ start_server() {
         
         # First, check for cargo-built ICICLE libraries in target directory (if PROJECT_ROOT is set)
         if [[ -n "$PROJECT_ROOT" ]]; then
-            local cargo_icicle_lib="$PROJECT_ROOT/target/$CARGO_PROFILE/deps/icicle/lib"
+            local cargo_icicle_lib="$PROJECT_ROOT/target/$MPS_CARGO_PROFILE/deps/icicle/lib"
             if [[ -d "$cargo_icicle_lib" ]]; then
                 log_info "Using cargo-built ICICLE libraries from: $cargo_icicle_lib"
                 lib_path="$cargo_icicle_lib:$lib_path"
@@ -303,10 +303,10 @@ start_server() {
         fi
         
         # Check for system ICICLE libraries
-        if [[ -d "$ICICLE_LIB_PATH/backend" ]]; then
-            log_debug "Using system ICICLE library paths from: $ICICLE_LIB_PATH"
+        if [[ -d "$MPS_ICICLE_LIB_PATH/backend" ]]; then
+            log_debug "Using system ICICLE library paths from: $MPS_ICICLE_LIB_PATH"
             # Build library path from all backend directories
-            for backend_dir in "$ICICLE_LIB_PATH"/backend/*/cuda; do
+            for backend_dir in "$MPS_ICICLE_LIB_PATH"/backend/*/cuda; do
                 if [[ -d "$backend_dir" ]]; then
                     lib_path="$backend_dir:$lib_path"
                 fi
@@ -325,20 +325,20 @@ start_server() {
     
     # Start the server in background with proper library path
     log_info "Launching: $binary_path ${args[*]}"
-    LD_LIBRARY_PATH="$lib_path" RUST_BACKTRACE="$RUST_BACKTRACE" \
-        nohup "$binary_path" "${args[@]}" > "$LOG_FILE" 2>&1 &
+    LD_LIBRARY_PATH="$lib_path" RUST_BACKTRACE="$MPS_RUST_BACKTRACE" \
+        nohup "$binary_path" "${args[@]}" > "$MPS_LOG_FILE" 2>&1 &
     local pid=$!
-    echo "$pid" > "$PID_FILE"
+    echo "$pid" > "$MPS_PID_FILE"
     
     # Wait a moment and check if it's still running
     sleep 2
     if ps -p "$pid" > /dev/null 2>&1; then
         log_info "Server started successfully (PID: $pid)"
-        log_info "Logs: tail -f $LOG_FILE"
+        log_info "Logs: tail -f $MPS_LOG_FILE"
     else
         log_error "Server failed to start"
-        log_error "Check logs: tail $LOG_FILE"
-        rm -f "$PID_FILE"
+        log_error "Check logs: tail $MPS_LOG_FILE"
+        rm -f "$MPS_PID_FILE"
         return 1
     fi
 }
@@ -373,7 +373,7 @@ stop_server() {
         sleep 1
     fi
     
-    rm -f "$PID_FILE"
+    rm -f "$MPS_PID_FILE"
     log_info "Server stopped successfully"
 }
 
@@ -414,7 +414,7 @@ status_server() {
 check_health() {
     log_info "Checking server health..."
     
-    local health_url="http://localhost:$PORT/health"
+    local health_url="http://localhost:$MPS_PORT/health"
     local response
     local status_code
     
@@ -449,7 +449,7 @@ check_health() {
 check_ready() {
     log_info "Checking server readiness..."
     
-    local ready_url="http://localhost:$PORT/ready"
+    local ready_url="http://localhost:$MPS_PORT/ready"
     local response
     local status_code
     
@@ -481,7 +481,7 @@ check_ready() {
 get_version() {
     log_info "Fetching server version..."
     
-    local version_url="http://localhost:$PORT/version"
+    local version_url="http://localhost:$MPS_PORT/version"
     
     if command -v curl > /dev/null 2>&1; then
         local version
@@ -543,12 +543,12 @@ monitor_server() {
 watch_logs() {
     print_header "Watching Midnight Proof Server Logs"
     
-    if [[ ! -f "$LOG_FILE" ]]; then
-        log_error "Log file not found: $LOG_FILE"
+    if [[ ! -f "$MPS_LOG_FILE" ]]; then
+        log_error "Log file not found: $MPS_LOG_FILE"
         return 1
     fi
     
-    tail -f "$LOG_FILE"
+    tail -f "$MPS_LOG_FILE"
 }
 
 show_metrics() {
@@ -587,7 +587,7 @@ show_metrics() {
 ################################################################################
 
 generate_config() {
-    local config_file="${1:-$CONFIG_FILE}"
+    local config_file="${1:-$MPS_CONFIG_FILE}"
     
     print_header "Generating Configuration File"
     
@@ -610,26 +610,26 @@ generate_config() {
 # PROJECT_ROOT=${PROJECT_ROOT:-}  # Project root for building (leave empty to auto-detect)
 
 # Server Configuration
-PORT=$PORT
-VERBOSE=$VERBOSE
+PORT=$MPS_PORT
+VERBOSE=$MPS_VERBOSE
 
 # Worker Pool Configuration
-JOB_CAPACITY=$JOB_CAPACITY
-NUM_WORKERS=$NUM_WORKERS
-JOB_TIMEOUT=$JOB_TIMEOUT
-NO_FETCH_PARAMS=$NO_FETCH_PARAMS
+JOB_CAPACITY=$MPS_JOB_CAPACITY
+NUM_WORKERS=$MPS_NUM_WORKERS
+JOB_TIMEOUT=$MPS_JOB_TIMEOUT
+NO_FETCH_PARAMS=$MPS_NO_FETCH_PARAMS
 
 # Build Configuration
-CARGO_PROFILE=$CARGO_PROFILE
-FEATURES=$FEATURES
-RUST_BACKTRACE=$RUST_BACKTRACE
+CARGO_PROFILE=$MPS_CARGO_PROFILE
+FEATURES=$MPS_FEATURES
+RUST_BACKTRACE=$MPS_RUST_BACKTRACE
 
 # GPU Configuration (for GPU-enabled builds)
 # ICICLE_LIB_PATH=${ICICLE_LIB_PATH}
 
 # File Paths
-PID_FILE=$PID_FILE
-LOG_FILE=$LOG_FILE
+PID_FILE=$MPS_PID_FILE
+LOG_FILE=$MPS_LOG_FILE
 
 # Monitoring Configuration
 HEALTH_CHECK_INTERVAL=$HEALTH_CHECK_INTERVAL
@@ -646,7 +646,7 @@ show_config() {
     
     echo "Binary Configuration:"
     echo "  BINARY_PATH: ${BINARY_PATH:-<auto-detect from PROJECT_ROOT>}"
-    echo "  BINARY_NAME: $BINARY_NAME"
+    echo "  BINARY_NAME: $MPS_BINARY_NAME"
     echo "  PROJECT_ROOT: ${PROJECT_ROOT:-<not set>}"
     if command -v realpath >/dev/null 2>&1; then
         local detected_binary
@@ -655,24 +655,24 @@ show_config() {
     fi
     echo ""
     echo "Server Configuration:"
-    echo "  PORT: $PORT"
-    echo "  VERBOSE: $VERBOSE"
+    echo "  PORT: $MPS_PORT"
+    echo "  VERBOSE: $MPS_VERBOSE"
     echo ""
     echo "Worker Pool Configuration:"
-    echo "  JOB_CAPACITY: $JOB_CAPACITY"
-    echo "  NUM_WORKERS: $NUM_WORKERS"
-    echo "  JOB_TIMEOUT: $JOB_TIMEOUT"
-    echo "  NO_FETCH_PARAMS: $NO_FETCH_PARAMS"
+    echo "  JOB_CAPACITY: $MPS_JOB_CAPACITY"
+    echo "  NUM_WORKERS: $MPS_NUM_WORKERS"
+    echo "  JOB_TIMEOUT: $MPS_JOB_TIMEOUT"
+    echo "  NO_FETCH_PARAMS: $MPS_NO_FETCH_PARAMS"
     echo ""
     echo "Build Configuration:"
-    echo "  CARGO_PROFILE: $CARGO_PROFILE"
+    echo "  CARGO_PROFILE: $MPS_CARGO_PROFILE"
     echo "  FEATURES: ${FEATURES:-none}"
-    echo "  RUST_BACKTRACE: $RUST_BACKTRACE"
+    echo "  RUST_BACKTRACE: $MPS_RUST_BACKTRACE"
     echo ""
     echo "File Paths:"
-    echo "  PID_FILE: $PID_FILE"
-    echo "  LOG_FILE: $LOG_FILE"
-    echo "  CONFIG_FILE: $CONFIG_FILE"
+    echo "  PID_FILE: $MPS_PID_FILE"
+    echo "  LOG_FILE: $MPS_LOG_FILE"
+    echo "  CONFIG_FILE: $MPS_CONFIG_FILE"
     echo ""
     echo "Monitoring Configuration:"
     echo "  HEALTH_CHECK_INTERVAL: ${HEALTH_CHECK_INTERVAL}s"
@@ -715,7 +715,7 @@ test_api() {
         return 1
     fi
     
-    local base_url="http://localhost:$PORT"
+    local base_url="http://localhost:$MPS_PORT"
     
     echo "Testing GET /version"
     curl -s "$base_url/version" || log_error "Failed"
@@ -910,8 +910,8 @@ main() {
             --binary-name)
                 BINARY_NAME="$2"
                 # Update PID and LOG file names if binary name changes
-                PID_FILE="${PID_FILE:-/tmp/${BINARY_NAME}.pid}"
-                LOG_FILE="${LOG_FILE:-/tmp/${BINARY_NAME}.log}"
+                PID_FILE="${MPS_PID_FILE:-/tmp/${BINARY_NAME}.pid}"
+                LOG_FILE="${MPS_LOG_FILE:-/tmp/${BINARY_NAME}.log}"
                 shift 2
                 ;;
             --project-root)
