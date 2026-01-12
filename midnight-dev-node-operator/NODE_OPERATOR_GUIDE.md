@@ -4,6 +4,8 @@ Quick reference for managing Midnight blockchain nodes in development and testin
 
 _Note: The midnight-node implementation lives in the midnight-node repository. This guide focuses on running single nodes, local multi-node networks, and distributed deployments._
 
+> **⚠️ IMPORTANT:** Multi-Node Network functionality is currently blocked pending an upstream PR merge. Only **single node development setup** works at this time. For more information, see [Issue #1](https://github.com/riusricardo/midnight-infra-dev-tools/issues/1).
+
 ## Quick Start
 
 ### Single Node Development
@@ -24,8 +26,10 @@ _Note: The midnight-node implementation lives in the midnight-node repository. T
 
 ### Local Multi-Node Network
 
+> **⚠️ NOT AVAILABLE YET:** This feature is blocked by an upstream PR. See [Issue #1](https://github.com/riusricardo/midnight-infra-dev-tools/issues/1).
+
 ```bash
-# Start 4-node network (Alice, Bob, Charlie, Dave)
+# Start 4-node network (Alice, Bob, Charlie, Dave) - BLOCKED
 ./midnight-operator.sh start --network --nodes 4
 
 # Check all nodes
@@ -54,19 +58,17 @@ help               # Show help
 
 ```bash
 # Create node-operator.conf in the script directory
-cat > node-operator.conf << EOF
-# Binary Configuration
-BINARY_PATH=/path/to/midnight-node
+MO_BINARY_PATH=/path/to/midnight-node
 PROJECT_ROOT=/path/to/midnight-node-repo
 
 # Directories
-BASE_DIR=/tmp/midnight-nodes
-LOG_DIR=/tmp/midnight-logs
-PID_DIR=/tmp/midnight-pids
+MO_BASE_DIR=/tmp/midnight-nodes
+MO_LOG_DIR=/tmp/midnight-logs
+MO_PID_DIR=/tmp/midnight-pids
 
 # Build Configuration
-CARGO_PROFILE=release
-VERBOSE=true
+MO_CARGO_PROFILE=release
+MO_VERBOSE=true
 EOF
 
 # Script will auto-load this config
@@ -77,13 +79,15 @@ EOF
 
 ```bash
 # Binary location
-export BINARY_PATH=/path/to/midnight-node
+export MO_BINARY_PATH=/path/to/midnight-node
 export PROJECT_ROOT=/path/to/project
 
 # Or use default binary path
-export BINARY=./target/release/midnight-node
+export MO_BINARY=./target/release/midnight-node
 
 # Custom directories
+export MO_BASE_DIR=/custom/data/dir
+export MO_m directories
 export BASE_DIR=/custom/data/dir
 export LOG_DIR=/custom/logs
 
@@ -121,10 +125,12 @@ Perfect for quick iteration during development.
 
 ### Local Multi-Node Network
 
+> **⚠️ BLOCKED:** This feature requires an upstream PR to be merged. Currently not functional. See [Issue #1](https://github.com/riusricardo/midnight-infra-dev-tools/issues/1).
+
 Test consensus, networking, and multi-validator scenarios on one machine.
 
 ```bash
-# Start 4 validators
+# Start 4 validators - NOT WORKING YET
 ./midnight-operator.sh start --network --nodes 4
 
 # All nodes are validators:
@@ -147,6 +153,8 @@ Test consensus, networking, and multi-validator scenarios on one machine.
 ```
 
 **Use case:** Testing consensus, block production, network issues, multi-node interactions
+
+> **⚠️ BLOCKED:** This feature requires an upstream PR to be merged. Currently not functional. See [Issue #1](https://github.com/riusricardo/midnight-infra-dev-tools/issues/1).
 
 ### Distributed Multi-Node Network
 
