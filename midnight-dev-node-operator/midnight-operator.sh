@@ -120,25 +120,29 @@ get_binary_path() {
     if [[ -n "$MO_BINARY_PATH" ]]; then
         binary_path="$MO_BINARY_PATH"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found at specified path: $binary_path"
+            log_error "MO_BINARY_PATH is set but file does not exist:" >&2
+            log_error "  Path: $binary_path" >&2
             return 1
         fi
     # Second priority: derive from PROJECT_ROOT
     elif [[ -n "$PROJECT_ROOT" ]]; then
         binary_path="$PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found at: $binary_path"
-            log_info "Please build the project first using: cargo build --release"
-            log_info "Or specify binary path: MO_BINARY_PATH=/path/to/binary $0 start ..."
+            log_error "Binary not found in PROJECT_ROOT:" >&2
+            log_error "  Expected: $binary_path" >&2
+            log_error "  PROJECT_ROOT: $PROJECT_ROOT" >&2
+            log_error "  Profile: $MO_CARGO_PROFILE" >&2
             return 1
         fi
     # Third priority: use MO_BINARY variable
     elif [[ -f "$MO_BINARY" ]]; then
         binary_path="$MO_BINARY"
     else
-        log_error "Cannot locate binary: neither MO_BINARY_PATH nor PROJECT_ROOT is set, and MO_BINARY ($MO_BINARY) not found"
-        log_info "Set MO_BINARY_PATH: MO_BINARY_PATH=/path/to/binary $0 start ..."
-        log_info "Or set PROJECT_ROOT: PROJECT_ROOT=/path/to/project $0 start ..."
+        log_error "Cannot locate '$MO_BINARY_NAME' binary:" >&2
+        log_error "  Checked locations:" >&2
+        log_error "    - MO_BINARY_PATH: ${MO_BINARY_PATH:-<not set>}" >&2
+        log_error "    - PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME: ${PROJECT_ROOT:-<not set>}" >&2
+        log_error "    - MO_BINARY: $MO_BINARY (not found)" >&2
         return 1
     fi
     
@@ -148,14 +152,38 @@ get_binary_path() {
 # Check if binary exists and is executable
 check_binary() {
     local binary_path
-    binary_path=$(get_binary_path) || {
-        log_error "Binary validation failed"
+    
+    # Capture the output AND the error separately
+    if ! binary_path=$(get_binary_path 2>&1); then
+        # get_binary_path already printed detailed error messages
+        echo ""
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "BINARY NOT FOUND: Cannot locate '$MO_BINARY_NAME'"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "Possible solutions:"
+        log_info "  1. Build the binary first:"
+        log_info "     cd midnight-node && cargo build --release"
+        echo ""
+        log_info "  2. Set the binary path explicitly:"
+        log_info "     MO_BINARY_PATH=/path/to/$MO_BINARY_NAME $0 start --node alice"
+        echo ""
+        log_info "  3. Set the project root:"
+        log_info "     PROJECT_ROOT=/path/to/midnight-node $0 start --node alice"
+        echo ""
+        log_info "See the Build section in NODE_OPERATOR_GUIDE.md for details."
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         exit 1
-    }
+    fi
     
     if [[ ! -x "$binary_path" ]]; then
-        log_error "Binary is not executable: $binary_path"
-        log_info "Make it executable: chmod +x $binary_path"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "BINARY NOT EXECUTABLE: $binary_path"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The binary exists but is not executable."
+        log_info "Fix with: chmod +x $binary_path"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         exit 1
     fi
     
@@ -358,7 +386,17 @@ generate_chain_spec() {
     CFG_PRESET=dev "$binary_path" build-spec --chain dev --disable-default-bootnode 2>/dev/null > "$base_spec"
     
     if [[ ! -f "$base_spec" ]] || [[ ! -s "$base_spec" ]]; then
-        log_error "Failed to generate base chain spec (file empty or missing)" >&2
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        log_error "CHAINSPEC GENERATION FAILED: build-spec command produced no output" >&2
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        log_info "The node binary failed to generate a chainspec." >&2
+        log_info "This may indicate:" >&2
+        log_info "  - Incompatible binary version" >&2
+        log_info "  - Missing runtime configuration" >&2
+        log_info "  - Binary was built without the required features" >&2
+        echo "" >&2
+        log_info "Try running manually to see error output:" >&2
+        log_info "  CFG_PRESET=dev $binary_path build-spec --chain dev" >&2
         return 1
     fi
     
@@ -371,7 +409,11 @@ generate_chain_spec() {
     
     jq --arg pid "$protocol_id" '.protocolId = $pid' "$base_spec" > "${base_spec}.tmp"
     if [[ ! -f "${base_spec}.tmp" ]] || [[ ! -s "${base_spec}.tmp" ]]; then
-        log_error "Failed to set protocol ID" >&2
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        log_error "CHAINSPEC MODIFICATION FAILED: Could not set protocol ID" >&2
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
+        log_info "jq failed to modify the chainspec file." >&2
+        log_info "Verify jq is installed and working: jq --version" >&2
         return 1
     fi
     mv "${base_spec}.tmp" "$base_spec"
@@ -524,7 +566,20 @@ join_network() {
     fi
     
     if [[ ! -f "$chain_spec" ]]; then
-        log_error "Chain spec file not found: $chain_spec"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "CHAINSPEC NOT FOUND: $chain_spec"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The chainspec file is required to join a distributed network."
+        log_info "It must be the same file used by the bootnode."
+        echo ""
+        log_info "To get the chainspec:"
+        log_info "  1. On the bootnode machine, generate it with:"
+        log_info "     $0 chainspec --nodes 4 --output chainspec.json"
+        echo ""
+        log_info "  2. Copy the file to this machine:"
+        log_info "     scp user@bootnode-ip:chainspec.json ."
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         return 1
     fi
     
@@ -612,8 +667,26 @@ join_network() {
     sleep 3
     
     if ! ps -p "$pid" > /dev/null 2>&1; then
-        log_error "Failed to start $name"
-        log_info "Check logs: ${LOG_DIR}/${name}.log"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "FAILED TO JOIN NETWORK: Node $name exited immediately"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "Check the log file for error details:"
+        log_info "  tail -50 ${LOG_DIR}/${name}.log"
+        echo ""
+        if [[ -f "${LOG_DIR}/${name}.log" ]]; then
+            log_info "Last 10 lines of the log:"
+            echo "----------------------------------------"
+            tail -10 "${LOG_DIR}/${name}.log" 2>/dev/null || echo "  (unable to read log)"
+            echo "----------------------------------------"
+        fi
+        echo ""
+        log_info "Common issues:"
+        log_info "  - Bootnode address unreachable (check IP and port)"
+        log_info "  - Wrong chainspec (must match the bootnode's chainspec)"
+        log_info "  - Chainspec and bootnode peer ID mismatch"
+        log_info "  - Port $p2p_port or $rpc_port already in use"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         remove_pid "$name"
         return 1
     fi
@@ -807,8 +880,28 @@ start_node() {
         log_info "Logs: tail -f ${LOG_DIR}/${node_name}.log"
         return 0
     else
-        log_error "Failed to start $node_name"
-        log_info "Check logs: ${LOG_DIR}/${node_name}.log"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "NODE FAILED TO START: $node_name"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The node process exited immediately after starting."
+        log_info "This usually indicates a configuration or runtime error."
+        echo ""
+        log_info "Check the log file for details:"
+        log_info "  tail -50 ${LOG_DIR}/${node_name}.log"
+        echo ""
+        if [[ -f "${LOG_DIR}/${node_name}.log" ]]; then
+            log_info "Last 10 lines of the log:"
+            echo "----------------------------------------"
+            tail -10 "${LOG_DIR}/${node_name}.log" 2>/dev/null || echo "  (unable to read log)"
+            echo "----------------------------------------"
+        fi
+        echo ""
+        log_info "Common issues:"
+        log_info "  - Port already in use (another node running?)"
+        log_info "  - Corrupted database (try: $0 clean --node $node_name)"
+        log_info "  - Missing dependencies"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         remove_pid "$node_name"
         return 1
     fi

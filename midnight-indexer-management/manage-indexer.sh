@@ -117,22 +117,25 @@ get_binary_path() {
     if [[ -n "$MI_BINARY_PATH" ]]; then
         binary_path="$MI_BINARY_PATH"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found at specified path: $binary_path"
+            log_error "MI_BINARY_PATH is set but file does not exist:" >&2
+            log_error "  Path: $binary_path" >&2
             return 1
         fi
     # Second priority: derive from PROJECT_ROOT
     elif [[ -n "$PROJECT_ROOT" ]]; then
         binary_path="$PROJECT_ROOT/target/$MI_CARGO_PROFILE/$MI_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found at: $binary_path"
-            log_info "Please build the project first using: ./manage-indexer.sh build"
-            log_info "Or specify binary path: BINARY_PATH=/path/to/binary ./manage-indexer.sh start"
+            log_error "Binary not found in PROJECT_ROOT:" >&2
+            log_error "  Expected: $binary_path" >&2
+            log_error "  PROJECT_ROOT: $PROJECT_ROOT" >&2
+            log_error "  Profile: $MI_CARGO_PROFILE" >&2
             return 1
         fi
     else
-        log_error "Cannot locate binary: neither BINARY_PATH nor PROJECT_ROOT is set"
-        log_info "Set BINARY_PATH: BINARY_PATH=/path/to/binary ./manage-indexer.sh start"
-        log_info "Or set PROJECT_ROOT: PROJECT_ROOT=/path/to/project ./manage-indexer.sh start"
+        log_error "Cannot locate '$MI_BINARY_NAME' binary:" >&2
+        log_error "  Checked locations:" >&2
+        log_error "    - MI_BINARY_PATH: ${MI_BINARY_PATH:-<not set>}" >&2
+        log_error "    - PROJECT_ROOT: ${PROJECT_ROOT:-<not set>}" >&2
         return 1
     fi
     
@@ -167,22 +170,41 @@ get_pid() {
 ################################################################################
 
 check_node() {
-    log_info "Checking node connection..."
+    log_info "Checking node connection at: $MI_NODE_URL"
     
     if ! command -v curl > /dev/null 2>&1; then
-        log_error "curl is required but not installed"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "MISSING DEPENDENCY: curl is required but not installed"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Install with: sudo apt install curl (Linux) or brew install curl (macOS)"
         return 1
     fi
     
-    local node_rpc_url="${NODE_URL/ws:/http:}"
-    node_rpc_url="${node_rpc_url/:9944/:9944}"
+    # Convert ws:// to http:// for curl
+    local node_rpc_url="${MI_NODE_URL/ws:/http:}"
+    node_rpc_url="${node_rpc_url/wss:/https:}"
     
     local response
-    response=$(curl -s -H "Content-Type: application/json" \
+    response=$(curl -s --connect-timeout 5 -H "Content-Type: application/json" \
         -d '{"jsonrpc":"2.0","method":"system_health","params":[],"id":1}' \
         "$node_rpc_url" 2>/dev/null) || {
-        log_error "Cannot connect to node at: $MI_NODE_URL"
-        log_info "Ensure your Midnight node is running and accessible"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "NODE CONNECTION FAILED: Cannot connect to $MI_NODE_URL"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The indexer requires a running Midnight node to index blocks."
+        echo ""
+        log_info "Possible solutions:"
+        log_info "  1. Start a node with the node operator script:"
+        log_info "     cd ../midnight-dev-node-operator"
+        log_info "     ./midnight-operator.sh start --node alice"
+        echo ""
+        log_info "  2. Or specify a different node URL:"
+        log_info "     ./manage-indexer.sh --node-url ws://192.168.1.100:9944 start"
+        echo ""
+        log_info "  3. Check if the node is running and accessible:"
+        log_info '     curl -s '"$node_rpc_url"' -d '\''{"jsonrpc":"2.0","method":"system_health","params":[],"id":1}'\'''
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         return 1
     }
     
@@ -190,8 +212,18 @@ check_node() {
         log_info "Node connection: ${GREEN}OK${NC}"
         return 0
     else
-        log_error "Node connection: ${RED}FAILED${NC}"
-        log_error "Response: $response"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "NODE RETURNED INVALID RESPONSE"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "URL: $MI_NODE_URL"
+        log_info "Response: $response"
+        echo ""
+        log_info "The node responded but with an unexpected format."
+        log_info "This may indicate:"
+        log_info "  - The node is still initializing (try again in a few seconds)"
+        log_info "  - The endpoint is not a Midnight/Substrate node"
+        log_info "  - RPC methods are disabled on the node"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         return 1
     fi
 }
@@ -245,14 +277,28 @@ generate_metadata() {
     print_header "Generating Metadata from Running Node"
     
     if [[ -z "$PROJECT_ROOT" ]]; then
-        log_error "Cannot generate metadata: PROJECT_ROOT is not set"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "CANNOT GENERATE METADATA: PROJECT_ROOT is not set"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Metadata needs to be saved to the project directory."
+        log_info "Set PROJECT_ROOT to the midnight-indexer repository path."
         return 1
     fi
     
     # Check if subxt-cli is installed
     if ! command -v subxt > /dev/null 2>&1; then
-        log_error "subxt-cli is not installed"
-        log_info "Install it with: cargo install subxt-cli"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "MISSING DEPENDENCY: subxt-cli is not installed"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "subxt-cli is required to download metadata from the node."
+        log_info "The version must match the subxt version in the indexer's Cargo.toml."
+        echo ""
+        log_info "Install with:"
+        log_info "  cargo install subxt-cli"
+        echo ""
+        log_info "Check the Cargo.toml for the exact version if this fails."
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         return 1
     fi
     
@@ -294,15 +340,34 @@ build_binary() {
     print_header "Building Midnight Indexer"
     
     if [[ -z "$PROJECT_ROOT" ]]; then
-        log_error "Cannot build: PROJECT_ROOT is not set"
-        log_info "To build, you must specify PROJECT_ROOT:"
-        log_info "  PROJECT_ROOT=/path/to/project ./manage-indexer.sh build"
-        log_info "Or run this script from within the project directory structure"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "CANNOT BUILD: PROJECT_ROOT is not set"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The script cannot find the midnight-indexer repository."
+        log_info "This script should be placed inside the midnight-indexer project directory,"
+        log_info "or you need to specify the project root explicitly."
+        echo ""
+        log_info "Solutions:"
+        log_info "  1. Copy this script to the midnight-indexer repository:"
+        log_info "     cp manage-indexer.sh /path/to/midnight-indexer/"
+        log_info "     cd /path/to/midnight-indexer && ./manage-indexer.sh build"
+        echo ""
+        log_info "  2. Set PROJECT_ROOT environment variable:"
+        log_info "     PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh build"
+        echo ""
+        log_info "  3. Or use --project-root option:"
+        log_info "     ./manage-indexer.sh --project-root /path/to/midnight-indexer build"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         return 1
     fi
     
     if [[ ! -d "$PROJECT_ROOT" ]]; then
-        log_error "PROJECT_ROOT directory does not exist: $PROJECT_ROOT"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "PROJECT_ROOT DIRECTORY NOT FOUND: $PROJECT_ROOT"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "The specified project root directory does not exist."
+        log_info "Please verify the path and try again."
         return 1
     fi
     
@@ -408,11 +473,29 @@ start_server() {
     # Check node connection first
     if ! check_node; then
         log_error "Cannot start indexer: node is not accessible"
+        log_info "Please ensure the Midnight node is running before starting the indexer."
         return 1
     fi
     
     local binary_path
-    binary_path=$(get_binary_path) || return 1
+    if ! binary_path=$(get_binary_path 2>&1); then
+        # get_binary_path already printed detailed error messages
+        echo ""
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "BINARY NOT FOUND: Cannot locate '$MI_BINARY_NAME'"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "Possible solutions:"
+        log_info "  1. Build the indexer first:"
+        log_info "     ./manage-indexer.sh build"
+        echo ""
+        log_info "  2. Or set the binary path explicitly:"
+        log_info "     MI_BINARY_PATH=/path/to/$MI_BINARY_NAME ./manage-indexer.sh start"
+        echo ""
+        log_info "See the Build section in INDEXER_MANAGEMENT_GUIDE.md for details."
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        return 1
+    fi
     
     # Create data directory
     mkdir -p "$MI_DATA_DIR"
@@ -450,8 +533,24 @@ start_server() {
         log_info "Initial output:"
         tail -n 10 "$MI_LOG_FILE"
     else
-        log_error "Indexer failed to start"
-        log_error "Check logs: tail $MI_LOG_FILE"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "INDEXER FAILED TO START: Process exited immediately"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        if [[ -f "$MI_LOG_FILE" ]]; then
+            log_info "Last 20 lines of the log:"
+            echo "----------------------------------------"
+            tail -20 "$MI_LOG_FILE" 2>/dev/null || echo "  (unable to read log)"
+            echo "----------------------------------------"
+        fi
+        echo ""
+        log_info "Common issues:"
+        log_info "  - Node metadata mismatch: Run './manage-indexer.sh generate-metadata'"
+        log_info "  - Port $MI_API_PORT already in use: Check with 'lsof -i :$MI_API_PORT'"
+        log_info "  - Database corruption: Try './manage-indexer.sh reset-db'"
+        log_info "  - Missing config: Check if config file exists at $MI_CONFIG_FILE"
+        log_info "  - Node not running: Verify node at $MI_NODE_URL"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         rm -f "$MI_PID_FILE"
         return 1
     fi
@@ -533,7 +632,7 @@ status_server() {
 ################################################################################
 
 check_api() {
-    log_info "Checking GraphQL API..."
+    log_info "Checking GraphQL API at http://localhost:$MI_API_PORT..."
     
     if ! command -v curl > /dev/null 2>&1; then
         log_warn "curl not available, skipping API check"
@@ -544,10 +643,17 @@ check_api() {
     
     # Try a simple query
     local response
-    response=$(curl -s -X POST "$api_url" \
+    response=$(curl -s --connect-timeout 5 -X POST "$api_url" \
         -H "Content-Type: application/json" \
         -d '{"query": "{ block { height } }"}' 2>/dev/null) || {
-        log_error "API not responding at: $api_url"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "API NOT RESPONDING at $api_url"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Possible causes:"
+        log_info "  - Indexer is not running: ./manage-indexer.sh status"
+        log_info "  - Indexer is still starting up (wait a few seconds)"
+        log_info "  - Different port: Check MI_API_PORT setting"
+        log_info "  - Firewall blocking port $MI_API_PORT"
         return 1
     }
     
@@ -558,7 +664,11 @@ check_api() {
         log_info "Current block height: $height"
     else
         log_error "API Status: ${RED}ERROR${NC}"
-        echo "Response: $response"
+        log_info "URL: $api_url"
+        log_info "Response: $response"
+        log_info ""
+        log_info "The API responded but with an error. Check the indexer logs:"
+        log_info "  tail -50 $MI_LOG_FILE"
         return 1
     fi
 }
@@ -642,7 +752,14 @@ watch_logs() {
     print_header "Watching Midnight Indexer Logs"
     
     if [[ ! -f "$MI_LOG_FILE" ]]; then
-        log_error "Log file not found: $MI_LOG_FILE"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "LOG FILE NOT FOUND: $MI_LOG_FILE"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "The indexer may not have been started yet, or it was started"
+        log_info "in a different session with a different log file location."
+        echo ""
+        log_info "To start the indexer: ./manage-indexer.sh start"
+        log_info "To check status:      ./manage-indexer.sh status"
         return 1
     fi
     
