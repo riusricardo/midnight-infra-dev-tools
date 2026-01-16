@@ -6,6 +6,156 @@ _Note: The midnight-node implementation lives in the midnight-node repository. T
 
 > **⚠️ IMPORTANT:** Multi-Node Network functionality is currently blocked pending an upstream PR merge. Only **single node development setup** works at this time. For more information, see [Issue #1](https://github.com/riusricardo/midnight-infra-dev-tools/issues/1).
 
+## Prerequisites
+
+Before building and running the Midnight node, you need to install the required dependencies.
+
+### System Requirements
+
+- **Processor:** 2 GHz minimum (3 GHz recommended)
+- **Memory:** 8 GB RAM minimum (16 GB recommended)
+- **Storage:** 10 GB available space minimum
+- **Network:** Broadband Internet connection
+
+### Install Dependencies
+
+<details>
+<summary><strong>Linux (Ubuntu/Debian)</strong></summary>
+
+```bash
+# Update package lists
+sudo apt update
+
+# Install required packages
+sudo apt install --assume-yes git clang curl libssl-dev protobuf-compiler
+
+# Download and install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Follow the prompts for default installation, then update your shell
+source $HOME/.cargo/env
+
+# Verify installation
+rustc --version
+
+# Configure Rust toolchain
+rustup default stable
+rustup update
+rustup target add wasm32-unknown-unknown
+rustup component add rust-src
+```
+
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+
+# Verify Homebrew
+brew --version
+
+# Update Homebrew
+brew update
+
+# Install required packages
+brew install openssl protobuf cmake
+
+# Download and install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Follow the prompts for default installation, then update your shell
+source ~/.cargo/env
+
+# Configure Rust toolchain
+rustup default stable
+rustup update
+rustup target add wasm32-unknown-unknown
+rustup component add rust-src
+```
+
+</details>
+
+<details>
+<summary><strong>Windows (WSL)</strong></summary>
+
+```powershell
+# In PowerShell (Run as Administrator)
+wsl --install
+```
+
+After restart, open Ubuntu from Start menu and run:
+
+```bash
+# Update packages
+sudo apt update
+
+# Install required packages
+sudo apt install --assume-yes git clang curl libssl-dev llvm libudev-dev make protobuf-compiler
+
+# Download and install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Follow the prompts for default installation, then update your shell
+source ~/.cargo/env
+
+# Verify installation
+rustc --version
+
+# Configure Rust toolchain
+rustup default stable
+rustup update
+rustup target add wasm32-unknown-unknown
+rustup component add rust-src
+```
+
+</details>
+
+> **Reference:** For detailed installation instructions, see the [Polkadot SDK Installation Guide](https://docs.polkadot.com/parachains/install-polkadot-sdk/).
+
+## Build Binaries
+
+### Using the Management Script (Recommended)
+
+```bash
+# Build the midnight-node binary
+./midnight-operator.sh build
+
+# Build with specific features (optional)
+./midnight-operator.sh build --features "some-feature"
+
+# Build with debug profile (faster compile, slower runtime)
+./midnight-operator.sh build --profile dev
+```
+
+### Manual Build
+
+```bash
+# Navigate to the midnight-node repository
+cd midnight-node
+
+# Build in release mode (optimized)
+cargo build --release
+
+# Verify the binary was created
+ls -la target/release/midnight-node
+```
+
+**Build Output:** The following binaries will be available in `target/release/`:
+- `midnight-node` - The blockchain node binary
+- `midnight-node-toolkit` - CLI tools for wallet operations
+
+### Verify Build
+
+```bash
+# Check binary version
+./target/release/midnight-node --version
+```
+
+> **Note:** The first build will take significant time as it compiles all dependencies. Subsequent builds are faster due to caching.
+
 ## Quick Start
 
 ### Single Node Development

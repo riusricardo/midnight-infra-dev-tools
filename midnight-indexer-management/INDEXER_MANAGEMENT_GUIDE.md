@@ -4,6 +4,83 @@ Quick reference for managing the Midnight indexer in standalone mode.
 
 _Note: The indexer implementation lives in the midnight-indexer repository. This guide focuses on building, starting, stopping, and monitoring the indexer built from that codebase._
 
+## Prerequisites
+
+### System Dependencies
+
+Before building the indexer, ensure you have all required dependencies installed:
+
+1. **Rust toolchain** - See the [Node Operator Guide](../midnight-dev-node-operator/NODE_OPERATOR_GUIDE.md#prerequisites) for complete Rust installation instructions
+2. **Midnight node running** - Required for metadata generation and indexing
+3. **subxt-cli** - Required for generating node metadata
+
+### Install subxt-cli
+
+```bash
+# Install subxt-cli
+cargo install subxt-cli
+
+# Verify installation
+subxt --version
+```
+
+> **Note:** The subxt-cli version must match the version specified in the indexer's `Cargo.toml`. Check the file for the exact version if builds fail.
+
+### Verify Node is Running
+
+```bash
+# Using the node operator script
+cd ../midnight-dev-node-operator
+./midnight-operator.sh status
+
+# Or manually check node health
+curl -s -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"system_health","params":[],"id":1}' \
+  http://127.0.0.1:9944
+```
+
+## Build Indexer Binary
+
+### Using the Management Script (Recommended)
+
+```bash
+# Check node connection first
+./manage-indexer.sh check-node
+
+# Check node version compatibility
+./manage-indexer.sh check-version
+
+# Generate metadata from running node and build automatically
+./manage-indexer.sh generate-metadata
+
+# Or build only (if metadata already exists)
+./manage-indexer.sh build
+```
+
+### Manual Build
+
+```bash
+# Navigate to the midnight-indexer repository
+cd midnight-indexer
+
+# Build in release mode with standalone feature
+cargo build --release -p indexer-standalone --features standalone
+
+# Verify the binary was created
+ls -la target/release/indexer-standalone
+```
+
+**Build Output:** `target/release/indexer-standalone`
+
+### Verify Build
+
+```bash
+# Check binary was created successfully
+./target/release/indexer-standalone --help
+```
+
+> **Note:** If you encounter metadata mismatch errors during build or runtime, regenerate metadata using `./manage-indexer.sh generate-metadata`.
+
 ## Quick Start
 
 ### Build and Run
