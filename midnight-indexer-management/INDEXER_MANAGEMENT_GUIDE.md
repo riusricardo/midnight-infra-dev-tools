@@ -39,6 +39,44 @@ curl -s -H "Content-Type: application/json" \
   http://127.0.0.1:9944
 ```
 
+## Script Setup
+
+The management script can be used in two ways:
+
+### Option 1: Point to Pre-built Binaries (Recommended for Testing)
+
+If you already have a built `indexer-standalone` binary, point the script to it:
+
+```bash
+# Set the binary path directly
+MI_BINARY_PATH=/path/to/indexer-standalone ./manage-indexer.sh start
+
+# Or set PROJECT_ROOT if the binary is in target/release/
+PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh start
+```
+
+### Option 2: Copy Script to Project Root (Recommended for Development)
+
+For the best experience, copy or symlink the script into the `midnight-indexer` project root:
+
+```bash
+# Copy the script to your midnight-indexer project
+cp manage-indexer.sh /path/to/midnight-indexer/
+
+# Or create a symlink
+ln -s $(pwd)/manage-indexer.sh /path/to/midnight-indexer/
+
+# Navigate to project root and run
+cd /path/to/midnight-indexer
+./manage-indexer.sh generate-metadata  # Generates metadata and builds
+./manage-indexer.sh start
+```
+
+When the script is in the project root (alongside `Cargo.toml`), it automatically:
+- Detects `PROJECT_ROOT`
+- Builds binaries to the correct location
+- Finds the binary without additional configuration
+
 ## Build Indexer Binary
 
 ### Using the Management Script (Recommended)

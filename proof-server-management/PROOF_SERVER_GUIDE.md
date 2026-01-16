@@ -2,7 +2,91 @@
 
 Quick reference for managing the Midnight proof server.
 
-_Note: The proof server implementation lives in the midnight-ledger repository. This guide focuses on building, starting, stopping, and monitoring the proof server built from that codebase._
+_Note: The proof server implementation lives in the midnight-ledger repository (as the `midnight-proof-server` package). This guide focuses on building, starting, stopping, and monitoring the proof server built from that codebase._
+
+## Prerequisites
+
+### System Dependencies
+
+Before building the proof server, ensure you have all required dependencies installed:
+
+1. **Rust toolchain** - See the [Node Operator Guide](../midnight-dev-node-operator/NODE_OPERATOR_GUIDE.md#prerequisites) for complete Rust installation instructions
+2. **Build tools** - `build-essential`, `clang`, `curl`, `git`, `make`
+3. **Cryptography libraries** - `libssl-dev` (for public/private key generation and transaction signatures)
+
+<details>
+<summary><strong>Linux (Ubuntu/Debian)</strong></summary>
+
+```bash
+# Update package lists
+sudo apt update
+
+# Install build-essential (minimum requirement)
+sudo apt install --assume-yes build-essential
+
+# Install required packages
+sudo apt install --assume-yes clang curl git make libssl-dev
+
+# Verify Rust is installed
+rustc --version
+cargo --version
+```
+
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+# Install required packages
+brew install openssl cmake
+
+# Verify Rust is installed
+rustc --version
+cargo --version
+```
+
+</details>
+
+> **Reference:** For complete dependency information, see the [Polkadot SDK Installation Guide](https://docs.polkadot.com/parachains/install-polkadot-sdk/).
+
+## Script Setup
+
+The management script can be used in two ways:
+
+### Option 1: Point to Pre-built Binaries (Recommended for Testing)
+
+If you already have a built `midnight-proof-server` binary, point the script to it:
+
+```bash
+# Set the binary path directly
+MPS_BINARY_PATH=/path/to/midnight-proof-server ./manage-proof-server.sh start
+
+# Or set PROJECT_ROOT if the binary is in target/release/
+PROJECT_ROOT=/path/to/midnight-ledger ./manage-proof-server.sh start
+```
+
+### Option 2: Copy Script to Project Root (Recommended for Development)
+
+For the best experience, copy or symlink the script into the `midnight-ledger` project root:
+
+```bash
+# Copy the script to your midnight-ledger project
+cp manage-proof-server.sh /path/to/midnight-ledger/
+
+# Or create a symlink
+ln -s $(pwd)/manage-proof-server.sh /path/to/midnight-ledger/
+
+# Navigate to project root and run
+cd /path/to/midnight-ledger
+./manage-proof-server.sh build      # Build the binary
+./manage-proof-server.sh start
+```
+
+When the script is in the project root (alongside `Cargo.toml`), it automatically:
+- Detects `PROJECT_ROOT`
+- Builds the `midnight-proof-server` package from the workspace
+- Finds the binary without additional configuration
 
 ## Quick Start
 
@@ -32,6 +116,45 @@ BINARY_PATH=../other-branch/target/release/midnight-proof-server ./manage-proof-
 ./manage-proof-server.sh --binary-path /opt/midnight/proof-server start
 ```
 
+## Build Proof Server Binary
+
+### Using the Management Script (Recommended)
+
+```bash
+# Standard build (release mode)
+./manage-proof-server.sh build
+
+# Build with debug profile (faster compile, slower runtime)
+MPS_CARGO_PROFILE=dev ./manage-proof-server.sh build
+```
+
+### Manual Build
+
+```bash
+# Navigate to the midnight-ledger repository
+cd midnight-ledger
+
+# Build in release mode
+cargo build --release --package midnight-proof-server
+
+# Verify the binary was created
+ls -la target/release/midnight-proof-server
+```
+
+**Build Output:** `target/release/midnight-proof-server`
+
+### Verify Build
+
+```bash
+# Check binary was created successfully
+./target/release/midnight-proof-server --help
+
+# Check version
+./target/release/midnight-proof-server --version
+```
+
+> **Note:** The first build will take significant time as it compiles cryptographic libraries.
+
 ## Common Commands
 
 ```bash
@@ -43,7 +166,6 @@ status             # Show status and health check
 logs               # Watch server logs (tail -f)
 monitor            # Monitor with auto-restart
 config             # Show current configuration
-check-gpu          # Verify GPU support (if enabled)
 ```
 
 

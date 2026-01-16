@@ -26,8 +26,11 @@ Before building and running the Midnight node, you need to install the required 
 # Update package lists
 sudo apt update
 
-# Install required packages
-sudo apt install --assume-yes git clang curl libssl-dev protobuf-compiler
+# Install build-essential (minimum requirement)
+sudo apt install --assume-yes build-essential
+
+# Install required packages for cryptography and compilation
+sudo apt install --assume-yes clang curl git make libssl-dev protobuf-compiler
 
 # Download and install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -93,7 +96,7 @@ After restart, open Ubuntu from Start menu and run:
 sudo apt update
 
 # Install required packages
-sudo apt install --assume-yes git clang curl libssl-dev llvm libudev-dev make protobuf-compiler
+sudo apt install --assume-yes build-essential clang curl git make libssl-dev llvm libudev-dev protobuf-compiler
 
 # Download and install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
@@ -114,6 +117,44 @@ rustup component add rust-src
 </details>
 
 > **Reference:** For detailed installation instructions, see the [Polkadot SDK Installation Guide](https://docs.polkadot.com/parachains/install-polkadot-sdk/).
+
+## Script Setup
+
+The management script can be used in two ways:
+
+### Option 1: Point to Pre-built Binaries (Recommended for Testing)
+
+If you already have a built `midnight-node` binary, point the script to it:
+
+```bash
+# Set the binary path directly
+MO_BINARY_PATH=/path/to/midnight-node ./midnight-operator.sh start --node alice
+
+# Or set PROJECT_ROOT if the binary is in target/release/
+PROJECT_ROOT=/path/to/midnight-node ./midnight-operator.sh start --node alice
+```
+
+### Option 2: Copy Script to Project Root (Recommended for Development)
+
+For the best experience, copy or symlink the script into the `midnight-node` project root:
+
+```bash
+# Copy the script to your midnight-node project
+cp midnight-operator.sh /path/to/midnight-node/
+
+# Or create a symlink
+ln -s $(pwd)/midnight-operator.sh /path/to/midnight-node/
+
+# Navigate to project root and run
+cd /path/to/midnight-node
+./midnight-operator.sh build      # Build the binary
+./midnight-operator.sh start --node alice
+```
+
+When the script is in the project root (alongside `Cargo.toml`), it automatically:
+- Detects `PROJECT_ROOT`
+- Builds binaries to the correct location
+- Finds the binary without additional configuration
 
 ## Build Binaries
 
