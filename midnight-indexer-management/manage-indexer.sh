@@ -28,16 +28,16 @@ set -euo pipefail
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Auto-detect PROJECT_ROOT intelligently
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
+# Auto-detect MI_PROJECT_ROOT intelligently
+if [[ -z "${MI_PROJECT_ROOT:-}" ]]; then
     # Check if we're in the project root (Cargo.toml exists here)
     if [[ -f "$SCRIPT_DIR/Cargo.toml" ]]; then
-        PROJECT_ROOT="$SCRIPT_DIR"
+        MI_PROJECT_ROOT="$SCRIPT_DIR"
     # Check if we're in a subdirectory like scripts/ (Cargo.toml exists in parent)
     elif [[ -f "$SCRIPT_DIR/../Cargo.toml" ]]; then
-        PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+        MI_PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
     else
-        PROJECT_ROOT=""
+        MI_PROJECT_ROOT=""
     fi
 fi
 
@@ -121,13 +121,13 @@ get_binary_path() {
             log_error "  Path: $binary_path" >&2
             return 1
         fi
-    # Second priority: derive from PROJECT_ROOT
-    elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$MI_CARGO_PROFILE/$MI_BINARY_NAME"
+    # Second priority: derive from MI_PROJECT_ROOT
+    elif [[ -n "$MI_PROJECT_ROOT" ]]; then
+        binary_path="$MI_PROJECT_ROOT/target/$MI_CARGO_PROFILE/$MI_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found in PROJECT_ROOT:" >&2
+            log_error "Binary not found in MI_PROJECT_ROOT:" >&2
             log_error "  Expected: $binary_path" >&2
-            log_error "  PROJECT_ROOT: $PROJECT_ROOT" >&2
+            log_error "  MI_PROJECT_ROOT: $MI_PROJECT_ROOT" >&2
             log_error "  Profile: $MI_CARGO_PROFILE" >&2
             return 1
         fi
@@ -135,7 +135,7 @@ get_binary_path() {
         log_error "Cannot locate '$MI_BINARY_NAME' binary:" >&2
         log_error "  Checked locations:" >&2
         log_error "    - MI_BINARY_PATH: ${MI_BINARY_PATH:-<not set>}" >&2
-        log_error "    - PROJECT_ROOT: ${PROJECT_ROOT:-<not set>}" >&2
+        log_error "    - MI_PROJECT_ROOT: ${MI_PROJECT_ROOT:-<not set>}" >&2
         return 1
     fi
     
@@ -276,12 +276,12 @@ check_node_version() {
 generate_metadata() {
     print_header "Generating Metadata from Running Node"
     
-    if [[ -z "$PROJECT_ROOT" ]]; then
+    if [[ -z "$MI_PROJECT_ROOT" ]]; then
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_error "CANNOT GENERATE METADATA: PROJECT_ROOT is not set"
+        log_error "CANNOT GENERATE METADATA: MI_PROJECT_ROOT is not set"
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         log_info "Metadata needs to be saved to the project directory."
-        log_info "Set PROJECT_ROOT to the midnight-indexer repository path."
+        log_info "Set MI_PROJECT_ROOT to the midnight-indexer repository path."
         return 1
     fi
     
@@ -308,7 +308,7 @@ generate_metadata() {
     log_info "Node version: $node_version"
     
     # Create directory for metadata
-    local metadata_dir="$PROJECT_ROOT/.node/$node_version"
+    local metadata_dir="$MI_PROJECT_ROOT/.node/$node_version"
     mkdir -p "$metadata_dir"
     
     # Download metadata
@@ -339,9 +339,9 @@ generate_metadata() {
 build_binary() {
     print_header "Building Midnight Indexer"
     
-    if [[ -z "$PROJECT_ROOT" ]]; then
+    if [[ -z "$MI_PROJECT_ROOT" ]]; then
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_error "CANNOT BUILD: PROJECT_ROOT is not set"
+        log_error "CANNOT BUILD: MI_PROJECT_ROOT is not set"
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         log_info "The script cannot find the midnight-indexer repository."
@@ -353,8 +353,8 @@ build_binary() {
         log_info "     cp manage-indexer.sh /path/to/midnight-indexer/"
         log_info "     cd /path/to/midnight-indexer && ./manage-indexer.sh build"
         echo ""
-        log_info "  2. Set PROJECT_ROOT environment variable:"
-        log_info "     PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh build"
+        log_info "  2. Set MI_PROJECT_ROOT environment variable:"
+        log_info "     MI_PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh build"
         echo ""
         log_info "  3. Or use --project-root option:"
         log_info "     ./manage-indexer.sh --project-root /path/to/midnight-indexer build"
@@ -362,9 +362,9 @@ build_binary() {
         return 1
     fi
     
-    if [[ ! -d "$PROJECT_ROOT" ]]; then
+    if [[ ! -d "$MI_PROJECT_ROOT" ]]; then
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_error "PROJECT_ROOT DIRECTORY NOT FOUND: $PROJECT_ROOT"
+        log_error "MI_PROJECT_ROOT DIRECTORY NOT FOUND: $MI_PROJECT_ROOT"
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         log_info "The specified project root directory does not exist."
         log_info "Please verify the path and try again."
@@ -374,7 +374,7 @@ build_binary() {
     log_info "Build profile: $MI_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-standalone}"
     
-    cd "$PROJECT_ROOT"
+    cd "$MI_PROJECT_ROOT"
     
     local cargo_args=(
         "build"
@@ -864,7 +864,7 @@ OPTIONS:
 ENVIRONMENT VARIABLES:
   Binary/Project:
     BINARY_PATH                 Direct path to indexer binary
-    PROJECT_ROOT                Project root directory
+    MI_PROJECT_ROOT                Project root directory
 
   Node:
     APP__INFRA__NODE__URL       Node WebSocket URL
@@ -926,7 +926,7 @@ main() {
                 shift 2
                 ;;
             --project-root)
-                PROJECT_ROOT="$2"
+                MI_PROJECT_ROOT="$2"
                 shift 2
                 ;;
             --node-url)

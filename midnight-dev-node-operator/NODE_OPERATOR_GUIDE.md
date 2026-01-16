@@ -130,8 +130,8 @@ If you already have a built `midnight-node` binary, point the script to it:
 # Set the binary path directly
 MO_BINARY_PATH=/path/to/midnight-node ./midnight-operator.sh start --node alice
 
-# Or set PROJECT_ROOT if the binary is in target/release/
-PROJECT_ROOT=/path/to/midnight-node ./midnight-operator.sh start --node alice
+# Or set MO_PROJECT_ROOT if the binary is in target/release/
+MO_PROJECT_ROOT=/path/to/midnight-node ./midnight-operator.sh start --node alice
 ```
 
 ### Option 2: Copy Script to Project Root (Recommended for Development)
@@ -152,7 +152,7 @@ cd /path/to/midnight-node
 ```
 
 When the script is in the project root (alongside `Cargo.toml`), it automatically:
-- Detects `PROJECT_ROOT`
+- Detects `MO_PROJECT_ROOT`
 - Builds binaries to the correct location
 - Finds the binary without additional configuration
 
@@ -250,7 +250,7 @@ help               # Show help
 ```bash
 # Create node-operator.conf in the script directory
 MO_BINARY_PATH=/path/to/midnight-node
-PROJECT_ROOT=/path/to/midnight-node-repo
+MO_PROJECT_ROOT=/path/to/midnight-node-repo
 
 # Directories
 MO_BASE_DIR=/tmp/midnight-nodes
@@ -271,7 +271,7 @@ EOF
 ```bash
 # Binary location
 export MO_BINARY_PATH=/path/to/midnight-node
-export PROJECT_ROOT=/path/to/project
+export MO_PROJECT_ROOT=/path/to/project
 
 # Or use default binary path
 export MO_BINARY=./target/release/midnight-node
@@ -525,7 +525,7 @@ lsof -i :9944            # macOS
 ```bash
 # Check current configuration
 echo $BINARY_PATH
-echo $PROJECT_ROOT
+echo $MO_PROJECT_ROOT
 
 # Specify binary explicitly
 BINARY_PATH=/path/to/midnight-node ./midnight-operator.sh start --node alice

@@ -28,16 +28,16 @@ set -euo pipefail
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Auto-detect PROJECT_ROOT intelligently
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
+# Auto-detect MO_PROJECT_ROOT intelligently
+if [[ -z "${MO_PROJECT_ROOT:-}" ]]; then
     # Check if we're in the project root (Cargo.toml exists here)
     if [[ -f "$SCRIPT_DIR/Cargo.toml" ]]; then
-        PROJECT_ROOT="$SCRIPT_DIR"
+        MO_PROJECT_ROOT="$SCRIPT_DIR"
     # Check if we're in a subdirectory like scripts/ (Cargo.toml exists in parent)
     elif [[ -f "$SCRIPT_DIR/../Cargo.toml" ]]; then
-        PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+        MO_PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
     else
-        PROJECT_ROOT=""
+        MO_PROJECT_ROOT=""
     fi
 fi
 
@@ -124,13 +124,13 @@ get_binary_path() {
             log_error "  Path: $binary_path" >&2
             return 1
         fi
-    # Second priority: derive from PROJECT_ROOT
-    elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
+    # Second priority: derive from MO_PROJECT_ROOT
+    elif [[ -n "$MO_PROJECT_ROOT" ]]; then
+        binary_path="$MO_PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
-            log_error "Binary not found in PROJECT_ROOT:" >&2
+            log_error "Binary not found in MO_PROJECT_ROOT:" >&2
             log_error "  Expected: $binary_path" >&2
-            log_error "  PROJECT_ROOT: $PROJECT_ROOT" >&2
+            log_error "  MO_PROJECT_ROOT: $MO_PROJECT_ROOT" >&2
             log_error "  Profile: $MO_CARGO_PROFILE" >&2
             return 1
         fi
@@ -141,7 +141,7 @@ get_binary_path() {
         log_error "Cannot locate '$MO_BINARY_NAME' binary:" >&2
         log_error "  Checked locations:" >&2
         log_error "    - MO_BINARY_PATH: ${MO_BINARY_PATH:-<not set>}" >&2
-        log_error "    - PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME: ${PROJECT_ROOT:-<not set>}" >&2
+        log_error "    - MO_PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME: ${MO_PROJECT_ROOT:-<not set>}" >&2
         log_error "    - MO_BINARY: $MO_BINARY (not found)" >&2
         return 1
     fi
@@ -169,7 +169,7 @@ check_binary() {
         log_info "     MO_BINARY_PATH=/path/to/$MO_BINARY_NAME $0 start --node alice"
         echo ""
         log_info "  3. Set the project root:"
-        log_info "     PROJECT_ROOT=/path/to/midnight-node $0 start --node alice"
+        log_info "     MO_PROJECT_ROOT=/path/to/midnight-node $0 start --node alice"
         echo ""
         log_info "See the Build section in NODE_OPERATOR_GUIDE.md for details."
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

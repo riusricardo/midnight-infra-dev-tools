@@ -62,8 +62,8 @@ If you already have a built `midnight-proof-server` binary, point the script to 
 # Set the binary path directly
 MPS_BINARY_PATH=/path/to/midnight-proof-server ./manage-proof-server.sh start
 
-# Or set PROJECT_ROOT if the binary is in target/release/
-PROJECT_ROOT=/path/to/midnight-ledger ./manage-proof-server.sh start
+# Or set MPS_PROJECT_ROOT if the binary is in target/release/
+MPS_PROJECT_ROOT=/path/to/midnight-ledger ./manage-proof-server.sh start
 ```
 
 ### Option 2: Copy Script to Project Root (Recommended for Development)
@@ -84,7 +84,7 @@ cd /path/to/midnight-ledger
 ```
 
 When the script is in the project root (alongside `Cargo.toml`), it automatically:
-- Detects `PROJECT_ROOT`
+- Detects `MPS_PROJECT_ROOT`
 - Builds the `midnight-proof-server` package from the workspace
 - Finds the binary without additional configuration
 
@@ -182,7 +182,7 @@ config             # Show current configuration
 # Binary Configuration
 BINARY_PATH=/path/to/binary              # Direct path to binary
 BINARY_NAME=midnight-proof-server        # Binary name (if renamed)
-PROJECT_ROOT=/path/to/project            # For building
+MPS_PROJECT_ROOT=/path/to/project            # For building
 
 # Server
 PORT=6300                                # Server port
@@ -221,7 +221,7 @@ MAX_RESTART_ATTEMPTS=3                   # Auto-restart attempts
 # Binary/Project
 export BINARY_PATH=/path/to/binary
 export BINARY_NAME=my-proof-server
-export PROJECT_ROOT=/path/to/project
+export MPS_PROJECT_ROOT=/path/to/project
 
 # Server settings (alternative to config file)
 export MIDNIGHT_PROOF_SERVER_PORT=6300
@@ -382,8 +382,8 @@ scripts/manage-proof-server.sh start
 # From project root (if copied/symlinked)
 ./manage-proof-server.sh start
 
-# From anywhere (with PROJECT_ROOT)
-PROJECT_ROOT=/path/to/project /path/to/manage-proof-server.sh start
+# From anywhere (with MPS_PROJECT_ROOT)
+MPS_PROJECT_ROOT=/path/to/project /path/to/manage-proof-server.sh start
 ```
 
 ## Help

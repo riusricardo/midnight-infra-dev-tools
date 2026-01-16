@@ -51,8 +51,8 @@ If you already have a built `indexer-standalone` binary, point the script to it:
 # Set the binary path directly
 MI_BINARY_PATH=/path/to/indexer-standalone ./manage-indexer.sh start
 
-# Or set PROJECT_ROOT if the binary is in target/release/
-PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh start
+# Or set MI_PROJECT_ROOT if the binary is in target/release/
+MI_PROJECT_ROOT=/path/to/midnight-indexer ./manage-indexer.sh start
 ```
 
 ### Option 2: Copy Script to Project Root (Recommended for Development)
@@ -73,7 +73,7 @@ cd /path/to/midnight-indexer
 ```
 
 When the script is in the project root (alongside `Cargo.toml`), it automatically:
-- Detects `PROJECT_ROOT`
+- Detects `MI_PROJECT_ROOT`
 - Builds binaries to the correct location
 - Finds the binary without additional configuration
 
@@ -231,7 +231,7 @@ test-api           # Test API with sample queries
 # Binary/Project
 export BINARY_PATH=/path/to/indexer-standalone
 export BINARY_NAME=indexer-standalone
-export PROJECT_ROOT=/path/to/project
+export MI_PROJECT_ROOT=/path/to/project
 
 # Node Configuration
 export APP__INFRA__NODE__URL=ws://127.0.0.1:9944
@@ -592,8 +592,8 @@ The script can be run from multiple locations:
 cd midnight-indexer-management
 ./manage-indexer.sh start
 
-# From project root (with PROJECT_ROOT)
-PROJECT_ROOT=/path/to/midnight-ledger \
+# From project root (with MI_PROJECT_ROOT)
+MI_PROJECT_ROOT=/path/to/midnight-ledger \
   midnight-indexer-management/manage-indexer.sh start
 
 # From anywhere (with explicit paths)

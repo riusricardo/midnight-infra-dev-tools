@@ -29,16 +29,16 @@ set -euo pipefail
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Auto-detect PROJECT_ROOT intelligently
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
+# Auto-detect MPS_PROJECT_ROOT intelligently
+if [[ -z "${MPS_PROJECT_ROOT:-}" ]]; then
     # Check if we're in the project root (Cargo.toml exists here)
     if [[ -f "$SCRIPT_DIR/Cargo.toml" ]]; then
-        PROJECT_ROOT="$SCRIPT_DIR"
+        MPS_PROJECT_ROOT="$SCRIPT_DIR"
     # Check if we're in a subdirectory like scripts/ (Cargo.toml exists in parent)
     elif [[ -f "$SCRIPT_DIR/../Cargo.toml" ]]; then
-        PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+        MPS_PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
     else
-        PROJECT_ROOT=""
+        MPS_PROJECT_ROOT=""
     fi
 fi
 
@@ -127,9 +127,9 @@ get_binary_path() {
             log_error "Binary not found at specified path: $binary_path"
             return 1
         fi
-    # Second priority: derive from PROJECT_ROOT
-    elif [[ -n "$PROJECT_ROOT" ]]; then
-        binary_path="$PROJECT_ROOT/target/$MPS_CARGO_PROFILE/$MPS_BINARY_NAME"
+    # Second priority: derive from MPS_PROJECT_ROOT
+    elif [[ -n "$MPS_PROJECT_ROOT" ]]; then
+        binary_path="$MPS_PROJECT_ROOT/target/$MPS_CARGO_PROFILE/$MPS_BINARY_NAME"
         if [[ ! -f "$binary_path" ]]; then
             log_error "Binary not found at: $binary_path"
             log_info "Please build the project first using: ./manage-proof-server.sh build"
@@ -137,9 +137,9 @@ get_binary_path() {
             return 1
         fi
     else
-        log_error "Cannot locate binary: neither BINARY_PATH nor PROJECT_ROOT is set"
+        log_error "Cannot locate binary: neither BINARY_PATH nor MPS_PROJECT_ROOT is set"
         log_info "Set BINARY_PATH: BINARY_PATH=/path/to/binary ./manage-proof-server.sh start"
-        log_info "Or set PROJECT_ROOT: PROJECT_ROOT=/path/to/project ./manage-proof-server.sh start"
+        log_info "Or set MPS_PROJECT_ROOT: MPS_PROJECT_ROOT=/path/to/project ./manage-proof-server.sh start"
         return 1
     fi
     
@@ -176,23 +176,23 @@ get_pid() {
 build_binary() {
     print_header "Building Midnight Proof Server"
     
-    if [[ -z "$PROJECT_ROOT" ]]; then
-        log_error "Cannot build: PROJECT_ROOT is not set"
-        log_info "To build, you must specify PROJECT_ROOT:"
-        log_info "  PROJECT_ROOT=/path/to/project ./manage-proof-server.sh build"
+    if [[ -z "$MPS_PROJECT_ROOT" ]]; then
+        log_error "Cannot build: MPS_PROJECT_ROOT is not set"
+        log_info "To build, you must specify MPS_PROJECT_ROOT:"
+        log_info "  MPS_PROJECT_ROOT=/path/to/project ./manage-proof-server.sh build"
         log_info "Or run this script from within the project directory structure"
         return 1
     fi
     
-    if [[ ! -d "$PROJECT_ROOT" ]]; then
-        log_error "PROJECT_ROOT directory does not exist: $PROJECT_ROOT"
+    if [[ ! -d "$MPS_PROJECT_ROOT" ]]; then
+        log_error "MPS_PROJECT_ROOT directory does not exist: $MPS_PROJECT_ROOT"
         return 1
     fi
     
     log_info "Build profile: $MPS_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-none}"
     
-    cd "$PROJECT_ROOT"
+    cd "$MPS_PROJECT_ROOT"
     
     local cargo_args=(
         "build"
@@ -293,9 +293,9 @@ start_server() {
         # The GitHub fork of midnight-zk builds ICICLE v4.0.0 from source
         unset ICICLE_BACKEND_INSTALL_DIR
         
-        # First, check for cargo-built ICICLE libraries in target directory (if PROJECT_ROOT is set)
-        if [[ -n "$PROJECT_ROOT" ]]; then
-            local cargo_icicle_lib="$PROJECT_ROOT/target/$MPS_CARGO_PROFILE/deps/icicle/lib"
+        # First, check for cargo-built ICICLE libraries in target directory (if MPS_PROJECT_ROOT is set)
+        if [[ -n "$MPS_PROJECT_ROOT" ]]; then
+            local cargo_icicle_lib="$MPS_PROJECT_ROOT/target/$MPS_CARGO_PROFILE/deps/icicle/lib"
             if [[ -d "$cargo_icicle_lib" ]]; then
                 log_info "Using cargo-built ICICLE libraries from: $cargo_icicle_lib"
                 lib_path="$cargo_icicle_lib:$lib_path"
@@ -607,7 +607,7 @@ generate_config() {
 # Binary Configuration
 # BINARY_PATH=${BINARY_PATH:-}  # Direct path to binary (leave empty to auto-detect)
 # BINARY_NAME=${BINARY_NAME}
-# PROJECT_ROOT=${PROJECT_ROOT:-}  # Project root for building (leave empty to auto-detect)
+# MPS_PROJECT_ROOT=${MPS_PROJECT_ROOT:-}  # Project root for building (leave empty to auto-detect)
 
 # Server Configuration
 PORT=$MPS_PORT
@@ -645,9 +645,9 @@ show_config() {
     print_header "Current Configuration"
     
     echo "Binary Configuration:"
-    echo "  BINARY_PATH: ${BINARY_PATH:-<auto-detect from PROJECT_ROOT>}"
+    echo "  BINARY_PATH: ${BINARY_PATH:-<auto-detect from MPS_PROJECT_ROOT>}"
     echo "  BINARY_NAME: $MPS_BINARY_NAME"
-    echo "  PROJECT_ROOT: ${PROJECT_ROOT:-<not set>}"
+    echo "  MPS_PROJECT_ROOT: ${MPS_PROJECT_ROOT:-<not set>}"
     if command -v realpath >/dev/null 2>&1; then
         local detected_binary
         detected_binary=$(get_binary_path 2>/dev/null) || detected_binary="<not found>"
@@ -857,7 +857,7 @@ ENVIRONMENT VARIABLES:
   Binary/Project:
     BINARY_PATH                 Direct path to proof server binary
     BINARY_NAME                 Name of the binary
-    PROJECT_ROOT                Project root directory
+    MPS_PROJECT_ROOT                Project root directory
 
   Server:
     MIDNIGHT_PROOF_SERVER_PORT
@@ -868,7 +868,7 @@ ENVIRONMENT VARIABLES:
     MIDNIGHT_PROOF_SERVER_NO_FETCH_PARAMS
 
 EXAMPLES:
-  # Build with GPU support (requires PROJECT_ROOT)
+  # Build with GPU support (requires MPS_PROJECT_ROOT)
   FEATURES="gpu" $0 build
 
   # Build without GPU features
@@ -915,7 +915,7 @@ main() {
                 shift 2
                 ;;
             --project-root)
-                PROJECT_ROOT="$2"
+                MPS_PROJECT_ROOT="$2"
                 shift 2
                 ;;
             --port)
