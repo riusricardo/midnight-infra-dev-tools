@@ -94,7 +94,7 @@ log_error() {
 }
 
 log_debug() {
-    if [[ "${VERBOSE}" == "true" ]]; then
+    if [[ "${MPS_VERBOSE:-false}" == "true" ]]; then
         echo -e "${CYAN}[DEBUG]${NC} $*"
     fi
 }
