@@ -279,9 +279,8 @@ export MO_BINARY=./target/release/midnight-node
 
 # Custom directories
 export MO_BASE_DIR=/custom/data/dir
-export MO_m directories
-export BASE_DIR=/custom/data/dir
-export LOG_DIR=/custom/logs
+export MO_LOG_DIR=/custom/logs
+export MO_PID_DIR=/custom/pids
 
 # Then run
 ./midnight-operator.sh start --node alice
@@ -412,7 +411,7 @@ The script supports 6 well-known Substrate test accounts:
 # Single node with custom path
 ./midnight-operator.sh start --node alice --base-path /custom/path
 
-# Network will use BASE_DIR/<node-name> for each node
+# Network will use MO_BASE_DIR/<node-name> for each node
 ```
 
 ## Network Isolation
@@ -628,15 +627,15 @@ BINARY_PATH=/opt/midnight/my-midnight-node \
 
 ```bash
 # Network 1 (Team A)
-PROTOCOL_ID="team-a-testnet" \
-BASE_DIR=/tmp/team-a-nodes \
-LOG_DIR=/tmp/team-a-logs \
+MO_PROTOCOL_ID="team-a-testnet" \
+MO_BASE_DIR=/tmp/team-a-nodes \
+MO_LOG_DIR=/tmp/team-a-logs \
   ./midnight-operator.sh chainspec --nodes 4 --output team-a.json
 
 # Network 2 (Team B)
-PROTOCOL_ID="team-b-testnet" \
-BASE_DIR=/tmp/team-b-nodes \
-LOG_DIR=/tmp/team-b-logs \
+MO_PROTOCOL_ID="team-b-testnet" \
+MO_BASE_DIR=/tmp/team-b-nodes \
+MO_LOG_DIR=/tmp/team-b-logs \
   ./midnight-operator.sh chainspec --nodes 4 --output team-b.json
 
 # These networks are completely isolated
@@ -790,17 +789,17 @@ scp chain.json user@machine-c:~/
 
 ```bash
 # Via environment
-export BASE_DIR=/data/midnight/nodes
-export LOG_DIR=/var/log/midnight
-export PID_DIR=/var/run/midnight
+export MO_BASE_DIR=/data/midnight/nodes
+export MO_LOG_DIR=/var/log/midnight
+export MO_PID_DIR=/var/run/midnight
 
 ./midnight-operator.sh start --node alice
 
 # Via config file
 cat > node-operator.conf << EOF
-BASE_DIR=/data/midnight/nodes
-LOG_DIR=/var/log/midnight
-PID_DIR=/var/run/midnight
+MO_BASE_DIR=/data/midnight/nodes
+MO_LOG_DIR=/var/log/midnight
+MO_PID_DIR=/var/run/midnight
 EOF
 
 ./midnight-operator.sh start --node alice

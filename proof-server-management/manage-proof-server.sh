@@ -502,7 +502,7 @@ get_version() {
 monitor_server() {
     print_header "Monitoring Midnight Proof Server"
     log_info "Press Ctrl+C to stop monitoring"
-    log_info "Health check interval: ${HEALTH_CHECK_INTERVAL}s"
+    log_info "Health check interval: ${MPS_HEALTH_CHECK_INTERVAL}s"
     
     local failures=0
     
@@ -511,13 +511,13 @@ monitor_server() {
             log_error "Server is not running!"
             ((failures++))
             
-            if [[ $failures -ge $MAX_RESTART_ATTEMPTS ]]; then
-                log_error "Maximum restart attempts reached ($MAX_RESTART_ATTEMPTS)"
+            if [[ $failures -ge $MPS_MAX_RESTART_ATTEMPTS ]]; then
+                log_error "Maximum restart attempts reached ($MPS_MAX_RESTART_ATTEMPTS)"
                 return 1
             fi
             
-            log_warn "Attempting to restart server (attempt $failures/$MAX_RESTART_ATTEMPTS)"
-            sleep "$RESTART_DELAY"
+            log_warn "Attempting to restart server (attempt $failures/$MPS_MAX_RESTART_ATTEMPTS)"
+            sleep "$MPS_RESTART_DELAY"
             start_server || continue
             failures=0
         else
@@ -536,7 +536,7 @@ monitor_server() {
             fi
         fi
         
-        sleep "$HEALTH_CHECK_INTERVAL"
+        sleep "$MPS_HEALTH_CHECK_INTERVAL"
     done
 }
 
@@ -632,9 +632,9 @@ PID_FILE=$MPS_PID_FILE
 LOG_FILE=$MPS_LOG_FILE
 
 # Monitoring Configuration
-HEALTH_CHECK_INTERVAL=$HEALTH_CHECK_INTERVAL
-MAX_RESTART_ATTEMPTS=$MAX_RESTART_ATTEMPTS
-RESTART_DELAY=$RESTART_DELAY
+HEALTH_CHECK_INTERVAL=$MPS_HEALTH_CHECK_INTERVAL
+MAX_RESTART_ATTEMPTS=$MPS_MAX_RESTART_ATTEMPTS
+RESTART_DELAY=$MPS_RESTART_DELAY
 EOF
     
     log_info "Configuration file created: $config_file"
@@ -675,9 +675,9 @@ show_config() {
     echo "  CONFIG_FILE: $MPS_CONFIG_FILE"
     echo ""
     echo "Monitoring Configuration:"
-    echo "  HEALTH_CHECK_INTERVAL: ${HEALTH_CHECK_INTERVAL}s"
-    echo "  MAX_RESTART_ATTEMPTS: $MAX_RESTART_ATTEMPTS"
-    echo "  RESTART_DELAY: ${RESTART_DELAY}s"
+    echo "  HEALTH_CHECK_INTERVAL: ${MPS_HEALTH_CHECK_INTERVAL}s"
+    echo "  MAX_RESTART_ATTEMPTS: $MPS_MAX_RESTART_ATTEMPTS"
+    echo "  RESTART_DELAY: ${MPS_RESTART_DELAY}s"
 }
 
 ################################################################################

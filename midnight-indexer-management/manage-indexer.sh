@@ -710,7 +710,7 @@ test_api() {
 monitor_server() {
     print_header "Monitoring Midnight Indexer"
     log_info "Press Ctrl+C to stop monitoring"
-    log_info "Health check interval: ${HEALTH_CHECK_INTERVAL}s"
+    log_info "Health check interval: ${MI_HEALTH_CHECK_INTERVAL}s"
     
     local failures=0
     
@@ -719,13 +719,13 @@ monitor_server() {
             log_error "Indexer is not running!"
             ((failures++))
             
-            if [[ $failures -ge $MAX_RESTART_ATTEMPTS ]]; then
-                log_error "Maximum restart attempts reached ($MAX_RESTART_ATTEMPTS)"
+            if [[ $failures -ge $MI_MAX_RESTART_ATTEMPTS ]]; then
+                log_error "Maximum restart attempts reached ($MI_MAX_RESTART_ATTEMPTS)"
                 return 1
             fi
             
-            log_warn "Attempting to restart indexer (attempt $failures/$MAX_RESTART_ATTEMPTS)"
-            sleep "$RESTART_DELAY"
+            log_warn "Attempting to restart indexer (attempt $failures/$MI_MAX_RESTART_ATTEMPTS)"
+            sleep "$MI_RESTART_DELAY"
             start_server || continue
             failures=0
         else
@@ -744,7 +744,7 @@ monitor_server() {
             fi
         fi
         
-        sleep "$HEALTH_CHECK_INTERVAL"
+        sleep "$MI_HEALTH_CHECK_INTERVAL"
     done
 }
 

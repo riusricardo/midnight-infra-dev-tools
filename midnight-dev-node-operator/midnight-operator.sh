@@ -265,7 +265,7 @@ build_binary() {
 # Check if the process is running via PID file
 is_node_running() {
     local node_name="$1"
-    local pid_file="${PID_DIR}/${node_name}.pid"
+    local pid_file="${MO_PID_DIR}/${node_name}.pid"
     
     if [[ -f "$pid_file" ]]; then
         local pid
@@ -291,7 +291,7 @@ is_node_running() {
 # Get process PID for a node
 get_node_pid() {
     local node_name="$1"
-    local pid_file="${PID_DIR}/${node_name}.pid"
+    local pid_file="${MO_PID_DIR}/${node_name}.pid"
     
     if [[ -f "$pid_file" ]]; then
         cat "$pid_file"
@@ -304,7 +304,7 @@ get_node_pid() {
 save_pid() {
     local node_name="$1"
     local pid="$2"
-    local pid_file="${PID_DIR}/${node_name}.pid"
+    local pid_file="${MO_PID_DIR}/${node_name}.pid"
     
     mkdir -p "$MO_PID_DIR"
     echo "$pid" > "$pid_file"
@@ -314,7 +314,7 @@ save_pid() {
 # Remove PID file
 remove_pid() {
     local node_name="$1"
-    local pid_file="${PID_DIR}/${node_name}.pid"
+    local pid_file="${MO_PID_DIR}/${node_name}.pid"
     
     rm -f "$pid_file"
     log_debug "Removed PID file: $pid_file"
@@ -432,7 +432,7 @@ EOF
 # Generate multi-node chain specification
 generate_chain_spec() {
     local num_validators="$1"
-    local output_file="${CHAIN_SPEC_DIR}/local-multi-node-raw.json"
+    local output_file="${MO_CHAIN_SPEC_DIR}/local-multi-node-raw.json"
     
     check_binary
     mkdir -p "$MO_CHAIN_SPEC_DIR"
@@ -456,7 +456,7 @@ generate_chain_spec() {
     binary_path=$(get_binary_path) || return 1
     
     # Step 1: Generate base chain spec from dev
-    local base_spec="${CHAIN_SPEC_DIR}/local-multi-node-plain.json"
+    local base_spec="${MO_CHAIN_SPEC_DIR}/local-multi-node-plain.json"
     
     log_info "Generating base chain spec..." >&2
     CFG_PRESET=dev "$binary_path" build-spec --chain dev --disable-default-bootnode 2>/dev/null > "$base_spec"
@@ -691,7 +691,7 @@ join_network() {
     
     # Set base path
     if [[ -z "$base_path" ]]; then
-        base_path="${BASE_DIR}/${name}"
+        base_path="${MO_BASE_DIR}/${name}"
     fi
     
     mkdir -p "$base_path" "$MO_LOG_DIR" "$MO_PID_DIR"
@@ -734,9 +734,13 @@ join_network() {
         "$dev_account_flag"
     )
     
-    # Start node as background process
-    CFG_PRESET=dev \
-    "$binary_path" "${cmd_args[@]}" > "${LOG_DIR}/${name}.log" 2>&1 &
+    # Start node as background process from project root (so it can find res/ directory)
+    mkdir -p "${MO_LOG_DIR}" "${MO_PID_DIR}"
+    # Use a wrapper to execute from the right directory
+    (
+        cd "$MO_PROJECT_ROOT"
+        CFG_PRESET=dev "$binary_path" "${cmd_args[@]}" >> "${MO_LOG_DIR}/${name}.log" 2>&1
+    ) &
     
     local pid=$!
     save_pid "$name" "$pid"
@@ -748,12 +752,12 @@ join_network() {
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         log_info "Check the log file for error details:"
-        log_info "  tail -50 ${LOG_DIR}/${name}.log"
+        log_info "  tail -50 ${MO_LOG_DIR}/${name}.log"
         echo ""
-        if [[ -f "${LOG_DIR}/${name}.log" ]]; then
+        if [[ -f "${MO_LOG_DIR}/${name}.log" ]]; then
             log_info "Last 10 lines of the log:"
             echo "----------------------------------------"
-            tail -10 "${LOG_DIR}/${name}.log" 2>/dev/null || echo "  (unable to read log)"
+            tail -10 "${MO_LOG_DIR}/${name}.log" 2>/dev/null || echo "  (unable to read log)"
             echo "----------------------------------------"
         fi
         echo ""
@@ -910,12 +914,12 @@ start_node() {
     chmod 700 "$MO_SEED_DIR"
     
     # Create seed file
-    local seed_file="${SEED_DIR}/${node_name}-seed"
+    local seed_file="${MO_SEED_DIR}/${node_name}-seed"
     echo "//${node_name}" > "$seed_file"
     chmod 600 "$seed_file"
     
     # Create node key file
-    local key_file="${SEED_DIR}/${node_name}-key"
+    local key_file="${MO_SEED_DIR}/${node_name}-key"
     echo "$node_key" > "$key_file"
     chmod 600 "$key_file"
     
@@ -945,7 +949,7 @@ start_node() {
     
     # Start node
     CFG_PRESET=dev \
-    "$binary_path" "${cmd_args[@]}" > "${LOG_DIR}/${node_name}.log" 2>&1 &
+    "$binary_path" "${cmd_args[@]}" > "${MO_LOG_DIR}/${node_name}.log" 2>&1 &
     
     local pid=$!
     save_pid "$node_name" "$pid"
@@ -953,7 +957,7 @@ start_node() {
     
     if ps -p "$pid" > /dev/null 2>&1; then
         log_success "Started $node_name (PID: $pid)"
-        log_info "Logs: tail -f ${LOG_DIR}/${node_name}.log"
+        log_info "Logs: tail -f ${MO_LOG_DIR}/${node_name}.log"
         return 0
     else
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -964,12 +968,12 @@ start_node() {
         log_info "This usually indicates a configuration or runtime error."
         echo ""
         log_info "Check the log file for details:"
-        log_info "  tail -50 ${LOG_DIR}/${node_name}.log"
+        log_info "  tail -50 ${MO_LOG_DIR}/${node_name}.log"
         echo ""
-        if [[ -f "${LOG_DIR}/${node_name}.log" ]]; then
+        if [[ -f "${MO_LOG_DIR}/${node_name}.log" ]]; then
             log_info "Last 10 lines of the log:"
             echo "----------------------------------------"
-            tail -10 "${LOG_DIR}/${node_name}.log" 2>/dev/null || echo "  (unable to read log)"
+            tail -10 "${MO_LOG_DIR}/${node_name}.log" 2>/dev/null || echo "  (unable to read log)"
             echo "----------------------------------------"
         fi
         echo ""
@@ -1010,7 +1014,7 @@ start_network() {
     # Generate or use existing chain spec
     if [[ "$bootnode_only" == "true" ]]; then
         # Bootnode-only mode: use existing chainspec or generate default 4-validator
-        chain_spec="${CHAIN_SPEC_DIR}/local-multi-node-raw.json"
+        chain_spec="${MO_CHAIN_SPEC_DIR}/local-multi-node-raw.json"
         if [[ ! -f "$chain_spec" ]]; then
             log_info "No existing chainspec found, generating 4-validator chainspec..."
             chain_spec=$(generate_chain_spec 4)
@@ -1059,7 +1063,7 @@ start_network() {
     
     IFS=':' read -r bootnode_name bootnode_p2p bootnode_rpc bootnode_key <<< "$bootnode_config"
     
-    local bootnode_base_path="${BASE_DIR}/${bootnode_name}"
+    local bootnode_base_path="${MO_BASE_DIR}/${bootnode_name}"
     mkdir -p "$bootnode_base_path" "$MO_LOG_DIR" "$MO_PID_DIR"
     
     log_info "Starting bootnode ($bootnode_name)..."
@@ -1104,7 +1108,7 @@ start_network() {
     binary_path=$(get_binary_path) || return 1
     
     CFG_PRESET=dev \
-    "$binary_path" "${bootnode_cmd_args[@]}" > "${LOG_DIR}/${bootnode_name}.log" 2>&1 &
+    "$binary_path" "${bootnode_cmd_args[@]}" > "${MO_LOG_DIR}/${bootnode_name}.log" 2>&1 &
     
     local bootnode_pid=$!
     save_pid "$bootnode_name" "$bootnode_pid"
@@ -1112,7 +1116,7 @@ start_network() {
     
     if ! ps -p "$bootnode_pid" > /dev/null 2>&1; then
         log_error "Failed to start bootnode $bootnode_name"
-        log_info "Check logs: ${LOG_DIR}/${bootnode_name}.log"
+        log_info "Check logs: ${MO_LOG_DIR}/${bootnode_name}.log"
         remove_pid "$bootnode_name"
         return 1
     fi
@@ -1120,7 +1124,7 @@ start_network() {
     log_success "Started $bootnode_name (PID: $bootnode_pid)"
     
     # Get bootnode peer ID from logs
-    local bootnode_peer_id=$(grep "Local node identity" "${LOG_DIR}/${bootnode_name}.log" 2>/dev/null | \
+    local bootnode_peer_id=$(grep "Local node identity" "${MO_LOG_DIR}/${bootnode_name}.log" 2>/dev/null | \
         sed -n 's/.*Local node identity is: \(.*\)/\1/p' | tail -1)
     
     if [[ -z "$bootnode_peer_id" ]]; then
@@ -1139,7 +1143,7 @@ start_network() {
             local node_config="${NODE_CONFIGS[$i]}"
             IFS=':' read -r node_name p2p_port rpc_port node_key <<< "$node_config"
             
-            local base_path="${BASE_DIR}/${node_name}"
+            local base_path="${MO_BASE_DIR}/${node_name}"
             
             # Check if already running
             if is_node_running "$node_name"; then
@@ -1191,7 +1195,7 @@ start_network() {
             
             # Start node
             CFG_PRESET=dev \
-            "$binary_path" "${cmd_args[@]}" > "${LOG_DIR}/${node_name}.log" 2>&1 &
+            "$binary_path" "${cmd_args[@]}" > "${MO_LOG_DIR}/${node_name}.log" 2>&1 &
             
             local pid=$!
             save_pid "$node_name" "$pid"
@@ -1201,7 +1205,7 @@ start_network() {
                 log_success "Started $node_name (PID: $pid)"
             else
                 log_error "Failed to start $node_name"
-                log_info "Check logs: ${LOG_DIR}/${node_name}.log"
+                log_info "Check logs: ${MO_LOG_DIR}/${node_name}.log"
                 remove_pid "$node_name"
             fi
         done
@@ -1450,7 +1454,7 @@ view_logs() {
     fi
     
     IFS=':' read -r name _ _ _ <<< "$config"
-    local log_file="${LOG_DIR}/${name}.log"
+    local log_file="${MO_LOG_DIR}/${name}.log"
     
     if [[ ! -f "$log_file" ]]; then
         log_error "Log file not found: $log_file"
@@ -1495,14 +1499,14 @@ clean_data() {
         fi
         
         IFS=':' read -r name _ _ _ <<< "$config"
-        local node_dir="${BASE_DIR}/${name}"
+        local node_dir="${MO_BASE_DIR}/${name}"
         
         if [[ -d "$node_dir" ]]; then
             rm -rf "$node_dir"
             log_info "Removed: $node_dir"
         fi
         
-        local log_file="${LOG_DIR}/${name}.log"
+        local log_file="${MO_LOG_DIR}/${name}.log"
         if [[ -f "$log_file" ]]; then
             rm -f "$log_file"
             log_info "Removed: $log_file"
@@ -1597,7 +1601,7 @@ main() {
                     node_name="alice"
                 fi
                 if [[ -z "$base_path" ]]; then
-                    base_path="${BASE_DIR}/${node_name}"
+                    base_path="${MO_BASE_DIR}/${node_name}"
                 fi
                 start_node "$node_name" "$base_path"
             fi

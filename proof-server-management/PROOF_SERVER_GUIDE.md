@@ -251,8 +251,9 @@ tail -f /tmp/midnight-proof-server.log
 ./manage-proof-server.sh monitor
 
 # Configure restart behavior
-export MAX_RESTART_ATTEMPTS=5
-export RESTART_DELAY=10
+export MPS_MAX_RESTART_ATTEMPTS=5
+export MPS_RESTART_DELAY=10
+export MPS_HEALTH_CHECK_INTERVAL=60
 ./manage-proof-server.sh monitor
 ```
 
