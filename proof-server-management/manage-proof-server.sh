@@ -627,8 +627,8 @@ generate_config() {
 # Generated: $(date)
 
 # Binary Configuration
-# BINARY_PATH=${BINARY_PATH:-}  # Direct path to binary (leave empty to auto-detect)
-# BINARY_NAME=${BINARY_NAME}
+# MPS_BINARY_PATH=${MPS_BINARY_PATH:-}  # Direct path to binary (leave empty to auto-detect)
+# MPS_BINARY_NAME=${MPS_BINARY_NAME}
 # MPS_PROJECT_ROOT=${MPS_PROJECT_ROOT:-}  # Project root for building (leave empty to auto-detect)
 
 # Server Configuration
@@ -922,18 +922,20 @@ EOF
 ################################################################################
 
 main() {
+    local command=""
+    
     # Parse command line options
     while [[ $# -gt 0 ]]; do
         case $1 in
             --binary-path)
-                BINARY_PATH="$2"
+                MPS_BINARY_PATH="$2"
                 shift 2
                 ;;
             --binary-name)
-                BINARY_NAME="$2"
+                MPS_BINARY_NAME="$2"
                 # Update PID and LOG file names if binary name changes
-                PID_FILE="${MPS_PID_FILE:-/tmp/${BINARY_NAME}.pid}"
-                LOG_FILE="${MPS_LOG_FILE:-/tmp/${BINARY_NAME}.log}"
+                MPS_PID_FILE="${MPS_PID_FILE:-/tmp/${MPS_BINARY_NAME}.pid}"
+                MPS_LOG_FILE="${MPS_LOG_FILE:-/tmp/${MPS_BINARY_NAME}.log}"
                 shift 2
                 ;;
             --project-root)
@@ -941,43 +943,43 @@ main() {
                 shift 2
                 ;;
             --port)
-                PORT="$2"
+                MPS_PORT="$2"
                 shift 2
                 ;;
             --workers)
-                NUM_WORKERS="$2"
+                MPS_NUM_WORKERS="$2"
                 shift 2
                 ;;
             --job-capacity)
-                JOB_CAPACITY="$2"
+                MPS_JOB_CAPACITY="$2"
                 shift 2
                 ;;
             --job-timeout)
-                JOB_TIMEOUT="$2"
+                MPS_JOB_TIMEOUT="$2"
                 shift 2
                 ;;
             --verbose)
-                VERBOSE="true"
+                MPS_VERBOSE="true"
                 shift
                 ;;
             --no-fetch-params)
-                NO_FETCH_PARAMS="true"
+                MPS_NO_FETCH_PARAMS="true"
                 shift
                 ;;
             --profile)
-                CARGO_PROFILE="$2"
+                MPS_CARGO_PROFILE="$2"
                 shift 2
                 ;;
             --features)
-                FEATURES="$2"
+                MPS_FEATURES="$2"
                 shift 2
                 ;;
             --config)
-                CONFIG_FILE="$2"
+                MPS_CONFIG_FILE="$2"
                 shift 2
                 ;;
             build|start|stop|restart|status|health|ready|version|monitor|logs|metrics|config|generate-config|features|test-api|check-gpu|help)
-                COMMAND="$1"
+                command="$1"
                 shift
                 ;;
             *)
@@ -992,7 +994,7 @@ main() {
     load_config
     
     # Execute command
-    case "${COMMAND:-}" in
+    case "${command:-}" in
         build)
             build_binary
             ;;
@@ -1045,7 +1047,7 @@ main() {
             show_usage
             ;;
         *)
-            log_error "Unknown command: $COMMAND"
+            log_error "Unknown command: $command"
             show_usage
             exit 1
             ;;

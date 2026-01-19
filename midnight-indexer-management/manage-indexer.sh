@@ -229,7 +229,7 @@ check_node() {
 }
 
 get_node_version() {
-    local node_rpc_url="${NODE_URL/ws:/http:}"
+    local node_rpc_url="${MI_NODE_URL/ws:/http:}"
     
     local version
     version=$(curl -s -H "Content-Type: application/json" \
@@ -940,10 +940,12 @@ EOF
 
 main() {
     # Parse command line options
+    local command=""
+    
     while [[ $# -gt 0 ]]; do
         case $1 in
             --binary-path)
-                BINARY_PATH="$2"
+                MI_BINARY_PATH="$2"
                 shift 2
                 ;;
             --project-root)
@@ -951,40 +953,40 @@ main() {
                 shift 2
                 ;;
             --node-url)
-                NODE_URL="$2"
+                MI_NODE_URL="$2"
                 shift 2
                 ;;
             --data-dir)
-                DATA_DIR="$2"
-                DB_FILE="$MI_DATA_DIR/indexer.sqlite"
+                MI_DATA_DIR="$2"
+                MI_DB_FILE="$MI_DATA_DIR/indexer.sqlite"
                 shift 2
                 ;;
             --db-file)
-                DB_FILE="$2"
+                MI_DB_FILE="$2"
                 shift 2
                 ;;
             --api-port)
-                API_PORT="$2"
+                MI_API_PORT="$2"
                 shift 2
                 ;;
             --profile)
-                CARGO_PROFILE="$2"
+                MI_CARGO_PROFILE="$2"
                 shift 2
                 ;;
             --features)
-                FEATURES="$2"
+                MI_FEATURES="$2"
                 shift 2
                 ;;
             --log-level)
-                RUST_LOG="$2"
+                MI_RUST_LOG="$2"
                 shift 2
                 ;;
             --verbose)
-                VERBOSE="true"
+                MI_VERBOSE="true"
                 shift
                 ;;
             build|start|stop|restart|status|monitor|logs|metrics|check-node|check-version|generate-metadata|reset-db|db-info|check-api|test-api|help)
-                COMMAND="$1"
+                command="$1"
                 shift
                 ;;
             *)
@@ -996,7 +998,7 @@ main() {
     done
     
     # Execute command
-    case "${COMMAND:-}" in
+    case "${command:-}" in
         # Node management
         check-node)
             check_node
@@ -1052,7 +1054,7 @@ main() {
             show_usage
             ;;
         *)
-            log_error "Unknown command: $COMMAND"
+            log_error "Unknown command: $command"
             show_usage
             exit 1
             ;;
