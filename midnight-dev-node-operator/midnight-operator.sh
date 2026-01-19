@@ -234,7 +234,10 @@ build_binary() {
         log_info "Features: $MO_FEATURES"
     fi
     
-    cd "$MO_PROJECT_ROOT"
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT"
+        return 1
+    }
     
     local cargo_args=(
         "build"
@@ -252,6 +255,14 @@ build_binary() {
     
     log_info "Running: cargo ${cargo_args[*]}"
     cargo "${cargo_args[@]}"
+    local build_result=$?
+    
+    popd > /dev/null
+    
+    if [[ $build_result -ne 0 ]]; then
+        log_error "Build failed"
+        return 1
+    fi
     
     log_success "Build completed successfully"
     local binary_path="$MO_PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
@@ -459,9 +470,17 @@ generate_chain_spec() {
     local base_spec="${MO_CHAIN_SPEC_DIR}/local-multi-node-plain.json"
     
     log_info "Generating base chain spec..." >&2
-    CFG_PRESET=dev "$binary_path" build-spec --chain dev --disable-default-bootnode 2>/dev/null > "$base_spec"
     
-    if [[ ! -f "$base_spec" ]] || [[ ! -s "$base_spec" ]]; then
+    # Run from project root so binary can find res/ directory
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT" >&2
+        return 1
+    }
+    CFG_PRESET=dev "$binary_path" build-spec --chain dev --disable-default-bootnode 2>/dev/null > "$base_spec"
+    local build_spec_result=$?
+    popd > /dev/null
+    
+    if [[ $build_spec_result -ne 0 ]] || [[ ! -f "$base_spec" ]] || [[ ! -s "$base_spec" ]]; then
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
         log_error "CHAINSPEC GENERATION FAILED: build-spec command produced no output" >&2
         log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
@@ -564,11 +583,19 @@ generate_chain_spec() {
     
     # Step 4: Convert to raw chain spec
     log_info "Converting to raw chain spec..." >&2
+    
+    # Run from project root so binary can find res/ directory
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT" >&2
+        return 1
+    }
     CFG_PRESET=dev "$binary_path" build-spec \
         --chain "$base_spec" \
         --raw \
         --disable-default-bootnode \
         2>/dev/null > "$output_file"
+    local raw_result=$?
+    popd > /dev/null
     
     if [[ -f "$output_file" ]] && [[ -s "$output_file" ]]; then
         log_success "Chain spec generated: $output_file ($(wc -l < "$output_file") lines)" >&2
@@ -736,13 +763,15 @@ join_network() {
     
     # Start node as background process from project root (so it can find res/ directory)
     mkdir -p "${MO_LOG_DIR}" "${MO_PID_DIR}"
-    # Use a wrapper to execute from the right directory
-    (
-        cd "$MO_PROJECT_ROOT"
-        CFG_PRESET=dev "$binary_path" "${cmd_args[@]}" >> "${MO_LOG_DIR}/${name}.log" 2>&1
-    ) &
     
+    # Change to project root, run the binary, then restore directory
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT"
+        return 1
+    }
+    CFG_PRESET=dev "$binary_path" "${cmd_args[@]}" >> "${MO_LOG_DIR}/${name}.log" 2>&1 &
     local pid=$!
+    popd > /dev/null
     save_pid "$name" "$pid"
     sleep 3
     
@@ -946,12 +975,17 @@ start_node() {
     # Get binary path
     local binary_path
     binary_path=$(get_binary_path) || return 1
-    
-    # Start node
+
+    # Start node from project root (so it can find res/ directory)
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT"
+        return 1
+    }
     CFG_PRESET=dev \
     "$binary_path" "${cmd_args[@]}" > "${MO_LOG_DIR}/${node_name}.log" 2>&1 &
     
     local pid=$!
+    popd > /dev/null
     save_pid "$node_name" "$pid"
     sleep 2
     
@@ -1106,11 +1140,17 @@ start_network() {
     # Get binary path
     local binary_path
     binary_path=$(get_binary_path) || return 1
-    
+
+    # Start node from project root (so it can find res/ directory)
+    pushd "$MO_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MO_PROJECT_ROOT"
+        return 1
+    }
     CFG_PRESET=dev \
     "$binary_path" "${bootnode_cmd_args[@]}" > "${MO_LOG_DIR}/${bootnode_name}.log" 2>&1 &
     
     local bootnode_pid=$!
+    popd > /dev/null
     save_pid "$bootnode_name" "$bootnode_pid"
     sleep 3
     
@@ -1193,11 +1233,16 @@ start_network() {
             local binary_path
             binary_path=$(get_binary_path) || continue
             
-            # Start node
+            # Start node from project root (so it can find res/ directory)
+            pushd "$MO_PROJECT_ROOT" > /dev/null || {
+                log_error "Failed to change to project root: $MO_PROJECT_ROOT"
+                continue
+            }
             CFG_PRESET=dev \
             "$binary_path" "${cmd_args[@]}" > "${MO_LOG_DIR}/${node_name}.log" 2>&1 &
             
             local pid=$!
+            popd > /dev/null
             save_pid "$node_name" "$pid"
             sleep 2
             

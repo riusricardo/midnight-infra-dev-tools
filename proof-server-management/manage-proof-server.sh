@@ -192,7 +192,10 @@ build_binary() {
     log_info "Build profile: $MPS_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-none}"
     
-    cd "$MPS_PROJECT_ROOT"
+    pushd "$MPS_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MPS_PROJECT_ROOT"
+        return 1
+    }
     
     local cargo_args=(
         "build"
@@ -220,6 +223,14 @@ build_binary() {
     
     log_info "Running: cargo ${cargo_args[*]}"
     cargo "${cargo_args[@]}"
+    local build_result=$?
+    
+    popd > /dev/null
+    
+    if [[ $build_result -ne 0 ]]; then
+        log_error "Build failed"
+        return 1
+    fi
     
     log_info "Build completed successfully"
     local binary_path
@@ -323,11 +334,22 @@ start_server() {
         done
     fi
     
-    # Start the server in background with proper library path
+    # Start the server in background with proper library path from project root (if set)
     log_info "Launching: $binary_path ${args[*]}"
-    LD_LIBRARY_PATH="$lib_path" RUST_BACKTRACE="$MPS_RUST_BACKTRACE" \
-        nohup "$binary_path" "${args[@]}" > "$MPS_LOG_FILE" 2>&1 &
-    local pid=$!
+    if [[ -n "$MPS_PROJECT_ROOT" ]]; then
+        pushd "$MPS_PROJECT_ROOT" > /dev/null || {
+            log_error "Failed to change to project root: $MPS_PROJECT_ROOT"
+            return 1
+        }
+        LD_LIBRARY_PATH="$lib_path" RUST_BACKTRACE="$MPS_RUST_BACKTRACE" \
+            nohup "$binary_path" "${args[@]}" > "$MPS_LOG_FILE" 2>&1 &
+        local pid=$!
+        popd > /dev/null
+    else
+        LD_LIBRARY_PATH="$lib_path" RUST_BACKTRACE="$MPS_RUST_BACKTRACE" \
+            nohup "$binary_path" "${args[@]}" > "$MPS_LOG_FILE" 2>&1 &
+        local pid=$!
+    fi
     echo "$pid" > "$MPS_PID_FILE"
     
     # Wait a moment and check if it's still running

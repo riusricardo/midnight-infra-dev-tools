@@ -374,7 +374,10 @@ build_binary() {
     log_info "Build profile: $MI_CARGO_PROFILE"
     log_info "Features: ${FEATURES:-standalone}"
     
-    cd "$MI_PROJECT_ROOT"
+    pushd "$MI_PROJECT_ROOT" > /dev/null || {
+        log_error "Failed to change to project root: $MI_PROJECT_ROOT"
+        return 1
+    }
     
     local cargo_args=(
         "build"
@@ -391,6 +394,14 @@ build_binary() {
     
     log_info "Running: cargo ${cargo_args[*]}"
     cargo "${cargo_args[@]}"
+    local build_result=$?
+    
+    popd > /dev/null
+    
+    if [[ $build_result -ne 0 ]]; then
+        log_error "Build failed"
+        return 1
+    fi
     
     log_info "Build completed successfully"
     local binary_path
@@ -515,10 +526,20 @@ start_server() {
     export APP__INFRA__SECRET="$MI_APP_SECRET"
     export CONFIG_FILE="$MI_CONFIG_FILE"
     
-    # Start the indexer in background
+    # Start the indexer in background from project root (if set)
     log_info "Launching: $binary_path"
-    nohup "$binary_path" > "$MI_LOG_FILE" 2>&1 &
-    local pid=$!
+    if [[ -n "$MI_PROJECT_ROOT" ]]; then
+        pushd "$MI_PROJECT_ROOT" > /dev/null || {
+            log_error "Failed to change to project root: $MI_PROJECT_ROOT"
+            return 1
+        }
+        nohup "$binary_path" > "$MI_LOG_FILE" 2>&1 &
+        local pid=$!
+        popd > /dev/null
+    else
+        nohup "$binary_path" > "$MI_LOG_FILE" 2>&1 &
+        local pid=$!
+    fi
     echo "$pid" > "$MI_PID_FILE"
     
     # Wait a moment and check if it's still running
