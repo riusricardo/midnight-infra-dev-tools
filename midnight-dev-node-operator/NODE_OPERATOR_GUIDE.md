@@ -233,6 +233,7 @@ ls -la target/release/midnight-node
 ## Common Commands
 
 ```bash
+build              # Build the midnight-node binary
 start              # Start node(s)
 stop               # Stop node(s)
 status             # Check node health

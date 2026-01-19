@@ -191,6 +191,77 @@ check_binary() {
     return 0
 }
 
+################################################################################
+# Build Functions
+################################################################################
+
+# Build the midnight-node binary
+build_binary() {
+    print_header "Building Midnight Node"
+    
+    if [[ -z "$MO_PROJECT_ROOT" ]]; then
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "CANNOT BUILD: MO_PROJECT_ROOT is not set"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        log_info "The script cannot find the midnight-node repository."
+        log_info "This script should be placed inside the midnight-node project directory,"
+        log_info "or you need to specify the project root explicitly."
+        echo ""
+        log_info "Solutions:"
+        log_info "  1. Copy this script to the midnight-node repository:"
+        log_info "     cp midnight-operator.sh /path/to/midnight-node/"
+        log_info "     cd /path/to/midnight-node && ./midnight-operator.sh build"
+        echo ""
+        log_info "  2. Set MO_PROJECT_ROOT environment variable:"
+        log_info "     MO_PROJECT_ROOT=/path/to/midnight-node ./midnight-operator.sh build"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        return 1
+    fi
+    
+    if [[ ! -d "$MO_PROJECT_ROOT" ]]; then
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_error "MO_PROJECT_ROOT DIRECTORY NOT FOUND: $MO_PROJECT_ROOT"
+        log_error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "The specified project root directory does not exist."
+        log_info "Please verify the path and try again."
+        return 1
+    fi
+    
+    log_info "Project root: $MO_PROJECT_ROOT"
+    log_info "Build profile: $MO_CARGO_PROFILE"
+    if [[ -n "$MO_FEATURES" ]]; then
+        log_info "Features: $MO_FEATURES"
+    fi
+    
+    cd "$MO_PROJECT_ROOT"
+    
+    local cargo_args=(
+        "build"
+    )
+    
+    if [[ "$MO_CARGO_PROFILE" == "release" ]]; then
+        cargo_args+=("--release")
+    elif [[ "$MO_CARGO_PROFILE" != "dev" ]]; then
+        cargo_args+=("--profile" "$MO_CARGO_PROFILE")
+    fi
+    
+    if [[ -n "$MO_FEATURES" ]]; then
+        cargo_args+=("--features" "$MO_FEATURES")
+    fi
+    
+    log_info "Running: cargo ${cargo_args[*]}"
+    cargo "${cargo_args[@]}"
+    
+    log_success "Build completed successfully"
+    local binary_path="$MO_PROJECT_ROOT/target/$MO_CARGO_PROFILE/$MO_BINARY_NAME"
+    log_info "Binary location: $binary_path"
+    
+    if [[ -f "$binary_path" ]]; then
+        log_info "Binary version: $($binary_path --version 2>/dev/null || echo 'unknown')"
+    fi
+}
+
 # Check if the process is running via PID file
 is_node_running() {
     local node_name="$1"
@@ -274,6 +345,7 @@ USAGE:
     $0 <command> [options]
 
 COMMANDS:
+    build       Build the midnight-node binary
     start       Start one or more nodes (local network)
     join        Join an existing network on a remote machine
     chainspec   Generate chainspec for distributed deployment
@@ -282,6 +354,10 @@ COMMANDS:
     clean       Clean database and logs
     logs        View node logs
     help        Show this help message
+
+BUILD OPTIONS:
+    --profile NAME      Cargo build profile (default: release)
+    --features LIST     Cargo features to enable
 
 START OPTIONS (Local Network):
     --node NAME         Start single node in quick dev mode (Alice-only chainspec)
@@ -1450,6 +1526,28 @@ main() {
     shift
     
     case "$command" in
+        build)
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --profile)
+                        MO_CARGO_PROFILE="$2"
+                        shift 2
+                        ;;
+                    --features)
+                        MO_FEATURES="$2"
+                        shift 2
+                        ;;
+                    *)
+                        log_error "Unknown option: $1"
+                        show_usage
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            build_binary
+            ;;
+        
         start)
             local mode="single"
             local node_name=""
