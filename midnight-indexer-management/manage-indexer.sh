@@ -45,14 +45,17 @@ MI_BINARY_NAME="${MI_BINARY_NAME:-indexer-standalone}"
 MI_BINARY_PATH="${MI_BINARY_PATH:-}"  # Direct path to binary (optional)
 MI_PID_FILE="${MI_PID_FILE:-/tmp/${MI_BINARY_NAME}.pid}"
 MI_LOG_FILE="${MI_LOG_FILE:-/tmp/${MI_BINARY_NAME}.log}"
-MI_CONFIG_FILE="${MI_CONFIG_FILE:-$SCRIPT_DIR/indexer-standalone/config.yaml}"
+
+# Use MI_PROJECT_ROOT for project-relative paths when set, otherwise SCRIPT_DIR
+MI_BASE_DIR="${MI_PROJECT_ROOT:-$SCRIPT_DIR}"
+MI_CONFIG_FILE="${MI_CONFIG_FILE:-$MI_BASE_DIR/indexer-standalone/config.yaml}"
 
 # Node configuration
 MI_NODE_URL="${MI_NODE_URL:-ws://127.0.0.1:9944}"
-MI_NODE_VERSION_FILE="${MI_NODE_VERSION_FILE:-$SCRIPT_DIR/NODE_VERSION}"
+MI_NODE_VERSION_FILE="${MI_NODE_VERSION_FILE:-$MI_BASE_DIR/NODE_VERSION}"
 
 # Database configuration
-MI_DATA_DIR="${MI_DATA_DIR:-$SCRIPT_DIR/target/data}"
+MI_DATA_DIR="${MI_DATA_DIR:-$MI_BASE_DIR/target/data}"
 MI_DB_FILE="${MI_DB_FILE:-$MI_DATA_DIR/indexer.sqlite}"
 
 # API configuration
