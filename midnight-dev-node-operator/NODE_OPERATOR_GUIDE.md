@@ -14,7 +14,7 @@ Before building and running the Midnight node, you need to install the required 
 
 - **Processor:** 2 GHz minimum (3 GHz recommended)
 - **Memory:** 8 GB RAM minimum (16 GB recommended)
-- **Storage:** 10 GB available space minimum
+- **Storage:** 20 GB available space minimum
 - **Network:** Broadband Internet connection
 
 ### Install Dependencies
