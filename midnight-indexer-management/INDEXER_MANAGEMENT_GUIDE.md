@@ -21,7 +21,7 @@ Before building the indexer, ensure you have all required dependencies installed
 cargo install subxt-cli
 
 # Verify installation
-subxt --version
+subxt version
 ```
 
 > **Note:** The subxt-cli version must match the version specified in the indexer's `Cargo.toml`. Check the file for the exact version if builds fail.
@@ -337,7 +337,7 @@ export MI_HEALTH_CHECK_INTERVAL=60
 
 The indexer exposes a GraphQL API at:
 ```
-http://localhost:8088
+http://localhost:8088/api/v3/graphql
 ```
 
 ### API Testing
@@ -350,12 +350,12 @@ http://localhost:8088
 ./manage-indexer.sh test-api
 
 # Manual queries
-curl -s -X POST http://localhost:8088 \
+curl -s -X POST http://localhost:8088/api/v3/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ block { height hash protocolVersion timestamp } }"}' | jq
 
 # Get genesis block
-curl -s -X POST http://localhost:8088 \
+curl -s -X POST http://localhost:8088/api/v3/graphql \
   -H "Content-Type: application/json" \
   -d '{"query": "{ block(offset: {height: 0}) { hash height transactions { hash } } }"}' | jq
 ```
